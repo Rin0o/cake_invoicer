@@ -2,12 +2,26 @@ import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
-import { Divider, FAB, List, Searchbar, SegmentedButtons, Text } from 'react-native-paper';
+import { FAB, Searchbar, SegmentedButtons, Text } from 'react-native-paper';
 
 import { listarItens, type Item, type TipoItem } from '@/db/repo';
 import { formatarPrecoUnidade } from '@/domain/format';
+import { CartaoLista } from '@/ui/CartaoLista';
 import { mostrarErro } from '@/ui/confirmar';
 import { espaco, tema } from '@/ui/theme';
+
+const ICONE_TIPO: Record<TipoItem, { icone: string; corIcone: string; fundoIcone: string }> = {
+  ingrediente: {
+    icone: 'egg-outline',
+    corIcone: tema.colors.onTertiaryContainer,
+    fundoIcone: tema.colors.tertiaryContainer,
+  },
+  material: {
+    icone: 'package-variant-closed',
+    corIcone: tema.colors.onSecondaryContainer,
+    fundoIcone: tema.colors.secondaryContainer,
+  },
+};
 
 export default function Catalogo() {
   const db = useSQLiteContext();
@@ -41,7 +55,6 @@ export default function Catalogo() {
       <FlatList
         data={filtrados}
         keyExtractor={(i) => String(i.id)}
-        ItemSeparatorComponent={Divider}
         contentContainerStyle={styles.lista}
         ListEmptyComponent={
           <Text style={styles.vazio} variant="bodyLarge">
@@ -53,12 +66,17 @@ export default function Catalogo() {
           </Text>
         }
         renderItem={({ item: i }) => (
-          <List.Item
-            title={i.nome}
-            titleStyle={!i.ativo && styles.inativo}
-            description={i.ativo ? undefined : 'Inativo'}
+          <CartaoLista
+            titulo={i.nome}
+            descricao={i.ativo ? undefined : 'Inativo'}
+            esbatido={!i.ativo}
+            {...ICONE_TIPO[i.tipo]}
+            direita={
+              <Text variant="titleSmall" style={styles.preco}>
+                {formatarPrecoUnidade(i.preco_unidade_cent, i.unidade)}
+              </Text>
+            }
             onPress={() => router.push({ pathname: '/item/[id]', params: { id: String(i.id) } })}
-            right={() => <Text style={styles.preco}>{formatarPrecoUnidade(i.preco_unidade_cent, i.unidade)}</Text>}
           />
         )}
       />
@@ -74,10 +92,9 @@ export default function Catalogo() {
 const styles = StyleSheet.create({
   ecra: { flex: 1 },
   segmentos: { marginHorizontal: espaco.m, marginTop: espaco.m },
-  pesquisa: { margin: espaco.m, marginBottom: espaco.s },
-  lista: { paddingBottom: 96 },
+  pesquisa: { margin: espaco.m, marginBottom: espaco.s, backgroundColor: tema.colors.surface },
+  lista: { paddingTop: espaco.xs, paddingBottom: 96 },
   vazio: { textAlign: 'center', marginTop: espaco.l * 2, color: tema.colors.onSurfaceVariant },
-  inativo: { color: tema.colors.onSurfaceVariant },
-  preco: { alignSelf: 'center' },
+  preco: { fontWeight: 'bold', color: tema.colors.primary },
   fab: { position: 'absolute', right: espaco.m, bottom: espaco.m },
 });

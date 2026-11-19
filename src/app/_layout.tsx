@@ -6,7 +6,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 
 import { migrar } from '@/db/migrations';
-import { tema } from '@/ui/theme';
+import { corCabecalho, tema } from '@/ui/theme';
 
 function ACarregar() {
   return (
@@ -24,7 +24,7 @@ export default function RootLayout() {
         <SQLiteProvider databaseName="orcamentos.db" onInit={migrar} useSuspense>
           <Stack
             screenOptions={{
-              headerStyle: { backgroundColor: tema.colors.surface },
+              headerStyle: { backgroundColor: corCabecalho },
               headerTintColor: tema.colors.onSurface,
               contentStyle: { backgroundColor: tema.colors.background },
             }}>

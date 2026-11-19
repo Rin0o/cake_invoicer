@@ -65,10 +65,26 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
 - [ ] Margem `abc` e **Concluído**: avisa que falta corrigir um valor e não sai.
 - [ ] Apagar o orçamento e um bolo só é possível pelo menu ⋮, com confirmação.
 - [ ] O mesmo no editor de receita (Concluído, "Receita guardada", apagar no menu ⋮).
+- [ ] Orçamento novo: dados do cliente abertos. Orçamento com cliente: fechados, com nome, entrega
+      e contacto; tocar abre-os.
+- [ ] Orçamento com vários bolos: os bolos com linhas começam fechados (nome, n.º de linhas e
+      preço); tocar abre. Com um só bolo, começa aberto.
+- [ ] Escrever no nome de um bolo e, sem sair do campo, fechá-lo: o nome fica guardado.
+- [ ] Escrever `abc` no tempo de trabalho e fechar o bolo: fica aberto, com o campo a vermelho.
+- [ ] O total está numa barra azul fixa no fundo, visível ao percorrer o orçamento, e não fica
+      por baixo da barra de navegação do Android. Muda logo ao alterar um preço.
+- [ ] Ao abrir o teclado, a barra do total desaparece; ao fechá-lo, volta.
 
 ## Estados e histórico
 
-- [ ] Um orçamento novo está em "Rascunho". Mudar o estado nos chips do editor; a lista mostra o estado novo.
+- [ ] Um orçamento novo está em "Rascunho", sem botões de passo seguinte. Tocar na etiqueta do
+      estado abre a lista dos 5 estados, com o atual marcado; escolher outro muda-o e a lista
+      mostra o estado novo. "Cancelar" ou tocar fora não muda nada.
+- [ ] Em "Enviado" aparecem, na mesma linha e à direita do estado, "Aceitou" (em destaque) e
+      "Recusou"; em "Aceite", "Entregue"; em "Recusado" e "Entregue", nenhum botão.
+- [ ] Na lista, toque longo num orçamento: abre a escolha de estado com o nome do cliente;
+      escolher muda o estado, mostra uma mensagem curta e o cartão muda de cor. Um toque normal
+      continua a abrir o orçamento.
 - [ ] Enviar um rascunho (PDF ou texto) passa-o a "Enviado". Enviar um "Aceite" não muda o estado.
 - [ ] Filtrar a lista por estado; combinar com a pesquisa por cliente; "Todos" volta à lista completa.
 - [ ] Ordem da lista: entregas de hoje e futuras primeiro (a mais próxima no topo), depois as

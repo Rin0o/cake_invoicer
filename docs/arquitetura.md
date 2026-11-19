@@ -59,6 +59,9 @@ Um orçamento antigo tem de dar sempre o mesmo valor. Por isso:
 
 - Estados em [src/domain/estados.ts](../src/domain/estados.ts). A regra "partilhar um rascunho passa-o
   a enviado" (`estadoDepoisDePartilhar`) é aplicada pelo editor depois de a folha de partilha fechar.
+  `passosSeguintes` diz que botões de ação mostrar no editor (ex.: enviado → "Aceitou").
+  Os componentes (etiqueta, botões, diálogo de escolha) estão em [src/ui/Estado.tsx](../src/ui/Estado.tsx);
+  o diálogo é o mesmo no editor e no toque longo da lista.
 - PDF: [src/pdf/template.ts](../src/pdf/template.ts) gera o HTML (puro, testado, escapa o texto);
   [src/pdf/pdf.ts](../src/pdf/pdf.ts) chama `expo-print`, dá ao ficheiro um nome legível e abre a
   folha de partilha. O logótipo é `assets/diana_cakes_logo.png`, lido com `expo-asset` e embebido em
@@ -118,6 +121,12 @@ Padrões:
 - Confirmações curtas de sucesso com `avisar()` (Toast do Android). Ações destrutivas ficam no menu
   ⋮ (`MenuMais`) e pedem sempre confirmação.
 - Textos da interface em português de Portugal, sem assumir o género de quem usa a app.
+- Cores em [src/ui/theme.ts](../src/ui/theme.ts): paleta do tema, `corCabecalho` e `COR_ESTADO`
+  (cor e ícone de cada estado). As listas principais usam `CartaoLista`
+  ([src/ui/CartaoLista.tsx](../src/ui/CartaoLista.tsx)).
+- Ícones da app: gerados a partir de `assets/icon.png` (PNG quadrado, fundo transparente) para
+  `assets/images/` (ícone, ícone adaptativo do Android com primeiro plano a 60 % do lado,
+  monocromático, ecrã de arranque, favicon e `logo.png` do cabeçalho).
 
 ## Testes
 
