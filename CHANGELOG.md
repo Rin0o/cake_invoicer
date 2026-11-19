@@ -31,6 +31,13 @@ Fase 2 da especificação.
 - **Estados** do orçamento (rascunho, enviado, aceite, recusado, entregue), escolhidos no editor.
   Enviar um rascunho (PDF ou texto) passa-o a "enviado".
 - Histórico com filtro por estado; o estado aparece em cada orçamento da lista.
+- **Escolher o cliente dos contactos** do telemóvel: no editor de orçamento, "Escolher dos
+  contactos" preenche o nome e o telefone (ou email; se houver vários, pergunta qual). Os dados
+  são copiados para o orçamento e continuam editáveis. Pede acesso aos contactos só para leitura
+  (a app nunca altera os contactos). Precisa de um novo build da app (não chega uma atualização OTA).
+- **Calendário para a data de entrega**: o ícone de calendário no campo abre o calendário do Android (semana a
+  começar à segunda); "Sem data" apaga a data. Continua a dar para escrever a data à mão.
+  Também precisa do novo build.
 
 - Botão **Concluído** nos editores de orçamento e de receita: guarda o campo em edição, confirma
   que tudo ficou gravado e volta à lista. Por baixo do título aparece "A guardar…" / "Guardado ✓".

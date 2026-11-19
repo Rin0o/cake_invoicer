@@ -6,12 +6,28 @@ import {
   formatarEuroInteiro,
   formatarPrecoUnidade,
   formatarTempo,
+  hojeIso,
+  isoParaData,
   lerData,
   lerDecimal,
   lerEurosParaCent,
   lerTempo,
 } from './format';
 import { deUnidadeItem, paraUnidadeItem, unidadeEntradaPorOmissao } from './units';
+
+describe('isoParaData', () => {
+  it('converte para meia-noite local e volta ao mesmo ISO', () => {
+    const d = isoParaData('2027-03-05');
+    expect([d.getFullYear(), d.getMonth(), d.getDate(), d.getHours()]).toEqual([2027, 2, 5, 0]);
+    expect(hojeIso(d)).toBe('2027-03-05');
+  });
+
+  it('sem data, devolve hoje', () => {
+    const agora = new Date(2026, 10, 19, 15, 30);
+    expect(isoParaData(null, agora)).toEqual(new Date(2026, 10, 19));
+    expect(isoParaData('', agora)).toEqual(new Date(2026, 10, 19));
+  });
+});
 
 describe('lerDecimal', () => {
   it('aceita vírgula ou ponto', () => {

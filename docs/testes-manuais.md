@@ -44,6 +44,13 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
 
 - [ ] Criar um orçamento novo: abre com "Bolo 1".
 - [ ] Preencher o cliente, o contacto e a data (`5/3/27` → `05/03/2027`); data inválida mostra erro.
+- [ ] **Escolher dos contactos**: na primeira vez pede acesso aos contactos. Um contacto com um só
+      número preenche o nome e o número. Com vários números e emails, aparece a lista para escolher
+      ("Só o nome" deixa o contacto como estava). Sem telefone nem email, só muda o nome. Cancelar o
+      seletor não altera nada. Recusar o acesso duas vezes e tentar de novo leva às definições.
+- [ ] **Calendário** (ícone no campo Data de entrega): sem data abre em hoje; com data abre nessa
+      data. Escolher um dia → o campo mostra `dd/mm/aaaa` e o cabeçalho "Guardado ✓". "Sem data"
+      apaga a data; Cancelar não muda nada. Com algo escrito no campo, tocar no ícone fecha o teclado.
 - [ ] Adicionar um ingrediente em g (ex.: 300 g a 1,20 €/kg = 0,36 €); a pré-visualização bate certo.
 - [ ] Mudar para kg no seletor de unidade e voltar a g.
 - [ ] Adicionar uma linha livre; editá-la; removê-la.

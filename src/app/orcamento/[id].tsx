@@ -2,8 +2,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, ScrollView, Share, StyleSheet, View } from 'react-native';
-import { Avatar, Button, Card, IconButton, Surface, Text, TouchableRipple } from 'react-native-paper';
+import { Keyboard, KeyboardAvoidingView, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Avatar, Button, Card, IconButton, Surface, Text, TextInput, TouchableRipple } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -36,8 +36,11 @@ import {
   GestorGuardar,
   TituloComEstado,
   useColapsavel,
+  useGestor,
   useGestorGuardar,
 } from '@/ui/Guardar';
+import { EscolherContacto, type DadosContacto } from '@/ui/EscolherContacto';
+import { escolherData } from '@/ui/escolherData';
 import { MenuMais } from '@/ui/MenuMais';
 import { useTecladoVisivel } from '@/ui/teclado';
 import { BotaoEstado, DialogoEstado, PassosSeguintes } from '@/ui/Estado';
@@ -48,6 +51,22 @@ type GuardarCampos = (campos: Parameters<typeof atualizarOrcamento>[2]) => Promi
 /** Dados do cliente e margem. Fechado, mostra só cliente, entrega e contacto. */
 function DadosCliente({ o, guardarCampos }: { o: OrcamentoCompleto; guardarCampos: GuardarCampos }) {
   const { aberto, alternar } = useColapsavel(!o.cliente);
+  const gestor = useGestor();
+
+  function usarContacto({ nome, contacto }: DadosContacto) {
+    const campos = { ...(nome ? { cliente: nome } : {}), ...(contacto !== null ? { contacto } : {}) };
+    if (Object.keys(campos).length === 0) return;
+    if (gestor) gestor.executar(() => guardarCampos(campos));
+    else guardarCampos(campos).catch(mostrarErro);
+  }
+
+  async function escolherEntrega() {
+    Keyboard.dismiss();
+    const iso = await escolherData(o.data_entrega);
+    if (iso === undefined || iso === o.data_entrega) return;
+    if (gestor) gestor.executar(() => guardarCampos({ data_entrega: iso }));
+    else guardarCampos({ data_entrega: iso }).catch(mostrarErro);
+  }
 
   if (!aberto) {
     const detalhes = [
@@ -86,6 +105,7 @@ function DadosCliente({ o, guardarCampos }: { o: OrcamentoCompleto; guardarCampo
           <Text variant="titleMedium">Cliente</Text>
           <IconButton icon="chevron-up" onPress={alternar} accessibilityLabel="Fechar dados do cliente" />
         </View>
+        <EscolherContacto aoEscolher={usarContacto} />
         <CampoAutoGuardado label="Cliente" valor={o.cliente} aoGuardar={(t) => guardarCampos({ cliente: t.trim() })} />
         <CampoAutoGuardado
           label="Contacto do cliente"
@@ -98,6 +118,13 @@ function DadosCliente({ o, guardarCampos }: { o: OrcamentoCompleto; guardarCampo
           placeholder="dd/mm/aaaa"
           valor={formatarData(o.data_entrega)}
           keyboardType="numbers-and-punctuation"
+          right={
+            <TextInput.Icon
+              icon="calendar-month-outline"
+              accessibilityLabel="Escolher data de entrega no calendário"
+              onPress={escolherEntrega}
+            />
+          }
           aoGuardar={async (t) => {
             if (t.trim() === '') return guardarCampos({ data_entrega: null });
             const iso = lerData(t);
