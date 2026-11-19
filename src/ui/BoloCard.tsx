@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { StyleSheet, View } from 'react-native';
-import { Button, Card, Divider, IconButton, List, Text, TextInput } from 'react-native-paper';
+import { Button, Card, Divider, List, Text, TextInput } from 'react-native-paper';
 
 import {
   apagarBolo,
@@ -24,20 +24,22 @@ import { valorLinha, type BoloCalculado } from '@/domain/pricing';
 import { deUnidadeItem } from '@/domain/units';
 import { CampoAutoGuardado } from '@/ui/CampoAutoGuardado';
 import { confirmar, mostrarErro } from '@/ui/confirmar';
+import { useGestor } from '@/ui/Guardar';
+import { MenuMais } from '@/ui/MenuMais';
 import { espaco, tema } from '@/ui/theme';
 
 interface Props {
   bolo: BoloComLinhas;
   calc: BoloCalculado;
   orcamento: Orcamento;
-  /** Chamado depois de qualquer alteraÃ§Ã£o guardada, para recarregar o orÃ§amento. */
+  /** Chamado depois de qualquer alteração guardada, para recarregar o orçamento. */
   aoMudar: () => Promise<void>;
 }
 
 function descricaoLinha(l: Linha) {
   if (l.livre) return 'Linha livre';
   const q = deUnidadeItem(l.quantidade, l.unidade_entrada, l.unidade);
-  return `${formatarDecimal(q)} ${l.unidade_entrada} Ã— ${formatarPrecoUnidade(l.preco_unit_cent, l.unidade)}`;
+  return `${formatarDecimal(q)} ${l.unidade_entrada} × ${formatarPrecoUnidade(l.preco_unit_cent, l.unidade)}`;
 }
 
 function LinhaResumo({ rotulo, valor, forte }: { rotulo: string; valor: string; forte?: boolean }) {
@@ -53,18 +55,29 @@ function LinhaResumo({ rotulo, valor, forte }: { rotulo: string; valor: string; 
 
 export function BoloCard({ bolo, calc, orcamento, aoMudar }: Props) {
   const db = useSQLiteContext();
+  const gestor = useGestor();
 
+  /** Grava e recarrega; usado pelos campos (o `CampoAutoGuardado` trata dos erros). */
+  async function mudar(fn: () => Promise<void>) {
+    await fn();
+    await aoMudar();
+  }
+
+  /** Para botões: grava através do gestor, que mostra o estado e os erros. */
   async function executar(fn: () => Promise<void>) {
+    if (gestor) {
+      await gestor.executar(() => mudar(fn));
+      return;
+    }
     try {
-      await fn();
-      await aoMudar();
+      await mudar(fn);
     } catch (e) {
       mostrarErro(e);
     }
   }
 
   async function apagar() {
-    if (await confirmar(`Apagar "${bolo.nome}"?`, 'O bolo e todas as suas linhas saem do orÃ§amento.')) {
+    if (await confirmar(`Apagar "${bolo.nome}"?`, 'O bolo e todas as suas linhas saem do orçamento.')) {
       await executar(() => apagarBolo(db, bolo.id));
     }
   }
@@ -81,10 +94,13 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar }: Props) {
             valor={bolo.nome}
             aoGuardar={async (t) => {
               if (!t.trim()) return 'Indique um nome.';
-              await executar(() => atualizarBolo(db, bolo.id, { nome: t.trim() }));
+              await mudar(() => atualizarBolo(db, bolo.id, { nome: t.trim() }));
             }}
           />
-          <IconButton icon="delete-outline" onPress={apagar} accessibilityLabel="Apagar bolo" />
+          <MenuMais
+            descricao="Mais opções do bolo"
+            opcoes={[{ titulo: 'Apagar bolo', icone: 'delete-outline', aoEscolher: apagar, destrutiva: true }]}
+          />
         </View>
 
         {bolo.linhas.length === 0 ? (
@@ -113,6 +129,13 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar }: Props) {
             Ingrediente / material
           </Button>
           <Button
+            mode="contained-tonal"
+            icon="book-open-variant"
+            compact
+            onPress={() => router.push({ pathname: '/orcamento/receita', params: { boloId: String(bolo.id) } })}>
+            Receita
+          </Button>
+          <Button
             mode="text"
             icon="plus"
             compact
@@ -129,8 +152,8 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar }: Props) {
           ajuda="Ex.: 2h30, 2:30 ou 150 (minutos)"
           aoGuardar={async (t) => {
             const min = t.trim() === '' ? 0 : lerTempo(t);
-            if (min === null) return 'Tempo invÃ¡lido. Use, por exemplo, 2h30 ou 150.';
-            await executar(() => atualizarBolo(db, bolo.id, { tempo_min: min }));
+            if (min === null) return 'Tempo inválido. Use, por exemplo, 2h30 ou 150.';
+            await mudar(() => atualizarBolo(db, bolo.id, { tempo_min: min }));
           }}
         />
 
@@ -139,7 +162,7 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar }: Props) {
         <View>
           <LinhaResumo rotulo="Ingredientes e materiais" valor={formatarEuro(calc.materiaisCent)} />
           <LinhaResumo
-            rotulo={`Tempo (${horas} h Ã— ${formatarEuro(orcamento.valor_hora_cent)})`}
+            rotulo={`Tempo (${horas} h × ${formatarEuro(orcamento.valor_hora_cent)})`}
             valor={formatarEuro(calc.tempoCent)}
           />
           <LinhaResumo
@@ -151,19 +174,19 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar }: Props) {
             rotulo={`Margem (${formatarDecimal(orcamento.margem_pct, 2)} % dos materiais)`}
             valor={formatarEuro(calc.margemCent)}
           />
-          <LinhaResumo rotulo="PreÃ§o calculado" valor={formatarEuroInteiro(calc.precoCalcCent)} forte />
+          <LinhaResumo rotulo="Preço calculado" valor={formatarEuroInteiro(calc.precoCalcCent)} forte />
         </View>
 
         <CampoAutoGuardado
-          label="PreÃ§o final"
+          label="Preço final"
           valor={String(calc.precoFinalCent / 100)}
           keyboardType="decimal-pad"
-          right={<TextInput.Affix text="â‚¬" />}
+          right={<TextInput.Affix text="€" />}
           aoGuardar={async (t) => {
             const n = lerDecimal(t);
-            if (n === null || n < 0) return 'Valor invÃ¡lido.';
+            if (n === null || n < 0) return 'Valor inválido.';
             const cent = Math.round(n) * 100;
-            await executar(() =>
+            await mudar(() =>
               definirPrecoFinal(db, bolo.id, cent === calc.precoCalcCent ? null : cent, calc.precoCalcCent),
             );
           }}
@@ -186,14 +209,14 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar }: Props) {
         ) : null}
         {calc.calculadoMudou ? (
           <Text variant="bodySmall" style={styles.aviso}>
-            O preÃ§o calculado mudou desde o ajuste: era{' '}
-            {formatarEuroInteiro(bolo.preco_calc_no_ajuste_cent ?? 0)}, agora Ã©{' '}
+            O preço calculado mudou desde o ajuste: era{' '}
+            {formatarEuroInteiro(bolo.preco_calc_no_ajuste_cent ?? 0)}, agora é{' '}
             {formatarEuroInteiro(calc.precoCalcCent)}.
           </Text>
         ) : null}
         {calc.abaixoDoCusto ? (
           <Text variant="bodySmall" style={styles.erro}>
-            AtenÃ§Ã£o: o preÃ§o final estÃ¡ abaixo do custo ({formatarEuro(calc.custoCent)}).
+            Atenção: o preço final está abaixo do custo ({formatarEuro(calc.custoCent)}).
           </Text>
         ) : null}
       </Card.Content>

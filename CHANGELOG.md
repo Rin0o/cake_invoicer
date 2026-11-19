@@ -16,6 +16,51 @@ Cada versão distribuída tem também um `android.versionCode` (em `app.json`) m
 
 ## [Por lançar]
 
+Fase 2 da especificação.
+
+### Adicionado
+
+- **Receitas**: novo separador para criar receitas a partir dos ingredientes e materiais do catálogo
+  (mais linhas livres), com custo estimado aos preços atuais. Sem tempo de trabalho.
+- **Adicionar receita a um bolo**, com escala decimal (ex.: 1,5) aplicada às quantidades dos
+  ingredientes; materiais e linhas livres ficam iguais. As linhas juntam-se às do bolo, por isso
+  um bolo pode juntar várias receitas (massa + recheio + cobertura). Os preços são copiados no
+  momento: mudar a receita depois não altera o orçamento.
+- **PDF do orçamento** com logótipo, data, entrega, bolos e total,
+  enviado pela folha de partilha.
+- **Estados** do orçamento (rascunho, enviado, aceite, recusado, entregue), escolhidos no editor.
+  Enviar um rascunho (PDF ou texto) passa-o a "enviado".
+- Histórico com filtro por estado; o estado aparece em cada orçamento da lista.
+
+- Botão **Concluído** nos editores de orçamento e de receita: guarda o campo em edição, confirma
+  que tudo ficou gravado e volta à lista. Por baixo do título aparece "A guardar…" / "Guardado ✓".
+- Mensagem curta de confirmação ao guardar, adicionar ou apagar (orçamento, receita, item, linha,
+  definições).
+
+### Alterado
+
+- Os botões de apagar (orçamento, bolo, receita, item) passaram para o menu ⋮, para não se
+  carregar neles por engano. Continuam a pedir confirmação.
+- A lista de orçamentos passa a estar ordenada pela data de entrega: primeiro as próximas, depois
+  as passadas, e no fim as que não têm data.
+- Não é possível apagar nem mudar a unidade de um item usado numa receita (a app diz em quais).
+- Backups feitos na versão 0.1.0 continuam a poder ser importados.
+
+### Removido
+
+- Contacto do negócio nas definições e no resumo em texto.
+- Nota "Orçamento — não serve de fatura" no resumo em texto (continua no PDF).
+- Nome do cliente no resumo em texto (o PDF também não o mostra; fica só no nome do ficheiro).
+
+### Corrigido
+
+- Acentos e símbolos estragados no cartão do bolo (ex.: "PreÃ§o final" em vez de "Preço final").
+
+### Schema da base de dados
+
+- v2: tabelas `receitas` e `receita_linhas`; saem as colunas `definicoes.contacto` e
+  `definicoes.logotipo`. A migração corre sozinha ao abrir a app, com backup automático antes.
+
 ## [0.1.0] — MVP
 
 Primeira versão (fase 1 da especificação).

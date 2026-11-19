@@ -62,6 +62,11 @@ export function valorLinha(linha: LinhaInput): number {
   return linha.quantidade * linha.precoUnitCent;
 }
 
+/** Soma do valor das linhas (custo de materiais, sem margem). Sem arredondar. */
+export function somaLinhas(linhas: LinhaInput[]): number {
+  return linhas.reduce((s, l) => s + valorLinha(l), 0);
+}
+
 /** Arredonda ao euro; 0,50 arredonda para cima. */
 export function arredondarAoEuro(cent: number): number {
   // O pequeno epsilon evita que 249,9999999 (erro de vírgula flutuante) arredonde para baixo.
@@ -69,7 +74,7 @@ export function arredondarAoEuro(cent: number): number {
 }
 
 export function calcularBolo(bolo: BoloInput, p: ParametrosOrcamento): BoloCalculado {
-  const materiaisCent = bolo.linhas.reduce((s, l) => s + valorLinha(l), 0);
+  const materiaisCent = somaLinhas(bolo.linhas);
   const tempoCent = (bolo.tempoMin / 60) * p.valorHoraCent;
   const indiretosCent = (materiaisCent + tempoCent) * (p.indiretoPct / 100);
   const margemCent = materiaisCent * (p.margemPct / 100);

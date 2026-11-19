@@ -96,6 +96,13 @@ export function lerData(texto: string): string | null {
   return `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 }
 
+/** Data local de hoje em "aaaa-mm-dd". */
+export function hojeIso(agora = new Date()): string {
+  const m = String(agora.getMonth() + 1).padStart(2, '0');
+  const d = String(agora.getDate()).padStart(2, '0');
+  return `${agora.getFullYear()}-${m}-${d}`;
+}
+
 /** "aaaa-mm-dd" → "dd/mm/aaaa". */
 export function formatarData(iso: string | null | undefined): string {
   if (!iso) return '';

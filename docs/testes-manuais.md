@@ -9,6 +9,7 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
 
 - [ ] Instalar o APK novo **por cima** da versão anterior: a instalação é aceite.
 - [ ] Os orçamentos, o catálogo e as definições continuam lá, com os mesmos totais.
+- [ ] (0.1.0 → 0.2.0) O nome do negócio mantém-se; os orçamentos antigos aparecem como "Rascunho".
 
 ## Catálogo
 
@@ -18,12 +19,26 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
 - [ ] Pesquisar encontra o item; mudar entre Ingredientes e Materiais filtra a lista.
 - [ ] Desativar um item: deixa de aparecer ao adicionar linhas, mas continua no catálogo.
 - [ ] Apagar um item usado num orçamento: o aviso aparece; o orçamento mantém a linha.
+- [ ] Apagar um item usado numa receita: a app recusa e diz em que receitas está.
+- [ ] Mudar a unidade (kg → l) de um item usado numa receita: mostra erro; mudar o preço funciona.
+
+## Receitas
+
+- [ ] Criar uma receita: nome, dois ingredientes (um em g), um material e uma linha livre.
+- [ ] O custo estimado bate com uma conta à mão; mudar o preço de um ingrediente no catálogo muda o custo da receita.
+- [ ] Editar a quantidade e remover uma linha.
+- [ ] Pesquisar a receita na lista; apagar a receita pede confirmação.
+- [ ] Num orçamento novo, no "Bolo 1": **Receita** → escolher → escala `1,5`. O bolo passa a ter o
+      nome da receita; os ingredientes têm 1,5× a quantidade; o material e a linha livre não mudam.
+- [ ] Escala `0`, vazia ou `abc` mostra erro e não adiciona.
+- [ ] Adicionar uma segunda receita ao mesmo bolo: as linhas juntam-se e o nome do bolo mantém-se.
+- [ ] Mudar a receita depois: o orçamento não muda.
 
 ## Definições
 
 - [ ] Alterar o valor/hora, os indiretos e a margem; guardar. Um orçamento **novo** usa os
       valores novos e os **antigos** não mudam.
-- [ ] O nome e o contacto do negócio aparecem no texto partilhado.
+- [ ] O nome do negócio aparece no texto partilhado e **não** aparece no PDF.
 
 ## Orçamento
 
@@ -44,18 +59,39 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
 - [ ] Apagar um bolo e apagar o orçamento pedem confirmação.
 - [ ] O teclado não tapa o campo em edição (sobretudo o preço final, no fim do ecrã).
 - [ ] Voltar à lista: o total do orçamento está atualizado; a pesquisa por cliente funciona.
+- [ ] Ao sair de um campo, aparece "Guardado ✓" por baixo do título.
+- [ ] Escrever no campo Cliente e, **sem sair do campo**, carregar em **Concluído**: volta à lista
+      com a mensagem "Orçamento guardado" e o nome novo aparece.
+- [ ] Margem `abc` e **Concluído**: avisa que falta corrigir um valor e não sai.
+- [ ] Apagar o orçamento e um bolo só é possível pelo menu ⋮, com confirmação.
+- [ ] O mesmo no editor de receita (Concluído, "Receita guardada", apagar no menu ⋮).
+
+## Estados e histórico
+
+- [ ] Um orçamento novo está em "Rascunho". Mudar o estado nos chips do editor; a lista mostra o estado novo.
+- [ ] Enviar um rascunho (PDF ou texto) passa-o a "Enviado". Enviar um "Aceite" não muda o estado.
+- [ ] Filtrar a lista por estado; combinar com a pesquisa por cliente; "Todos" volta à lista completa.
+- [ ] Ordem da lista: entregas de hoje e futuras primeiro (a mais próxima no topo), depois as
+      passadas, e no fim as sem data.
 
 ## Partilha
 
-- [ ] Partilhar → WhatsApp: o texto chega formatado (negrito no título e no total).
-- [ ] O texto **não** inclui ingredientes, o custo, as notas internas nem o preço calculado de um
-      bolo ajustado.
+- [ ] **Enviar PDF** → WhatsApp e → Drive: o ficheiro chama-se `Orcamento-<cliente>-<data>.pdf`.
+- [ ] O PDF abre em A4 com o logótipo nítido (sem manchas à volta), data, entrega, bolos com o
+      preço final e total certo. Acentos corretos. **Sem** o nome do cliente.
+- [ ] Orçamento sem data de entrega: o PDF não mostra linhas vazias.
+- [ ] Muitos bolos (ex.: 15): o PDF passa para a segunda página sem cortar linhas a meio.
+- [ ] **Enviar em texto** → WhatsApp: o texto chega formatado (negrito no título e no total).
+- [ ] O PDF e o texto **não** incluem o nome do cliente, ingredientes, o custo, as notas internas,
+      contactos nem o preço calculado de um bolo ajustado.
 
 ## Backup
 
 - [ ] Exportar backup → guardar no Drive ou enviar por email: o ficheiro `.json` é criado.
 - [ ] Criar um orçamento de teste; restaurar o backup: o orçamento de teste desaparece e os dados
       voltam ao estado do backup.
+- [ ] Restaurar um backup feito na versão 0.1.0: importa sem erro.
+- [ ] O backup inclui as receitas (restaurar e confirmar que voltam).
 - [ ] Restaurar um ficheiro que não é backup (ex.: uma foto): mostra erro e não altera nada.
 - [ ] Cancelar a escolha do ficheiro não faz nada.
 

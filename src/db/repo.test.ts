@@ -1,5 +1,6 @@
+import * as backupModulo from '@/backup/backup';
 import { gerarBackup, restaurarBackup, TABELAS, validarBackup } from '@/backup/backup';
-import { migrar, VERSAO_SCHEMA } from '@/db/migrations';
+import { migrar, MIGRATIONS, VERSAO_SCHEMA } from '@/db/migrations';
 import * as repo from '@/db/repo';
 import { abrirBaseDeTeste } from '@/db/testDb';
 import { paraUnidadeItem } from '@/domain/units';
@@ -113,7 +114,7 @@ describe('orçamentos', () => {
     const db = await novaBase();
     const oid = await repo.criarOrcamento(db);
     await repo.guardarDefinicoes(db, {
-      valor_hora_cent: 2000, custo_indireto_pct: 5, margem_pct: 10, nome_negocio: '', contacto: '',
+      valor_hora_cent: 2000, custo_indireto_pct: 5, margem_pct: 10, nome_negocio: '',
     });
     const o = (await repo.obterOrcamento(db, oid))!;
     expect(o.valor_hora_cent).toBe(1000);
@@ -144,9 +145,37 @@ describe('orçamentos', () => {
     const b = await repo.criarOrcamento(db);
     await repo.atualizarOrcamento(db, a, { cliente: 'Ana Silva' });
     await repo.atualizarOrcamento(db, b, { cliente: 'Rui 100%' });
-    expect((await repo.listarOrcamentos(db, 'ana')).map((o) => o.id)).toEqual([a]);
-    expect((await repo.listarOrcamentos(db, '%')).map((o) => o.id)).toEqual([b]);
-    expect(await repo.listarOrcamentos(db, '')).toHaveLength(2);
+    expect((await repo.listarOrcamentos(db, { pesquisa: 'ana' })).map((o) => o.id)).toEqual([a]);
+    expect((await repo.listarOrcamentos(db, { pesquisa: '%' })).map((o) => o.id)).toEqual([b]);
+    expect(await repo.listarOrcamentos(db)).toHaveLength(2);
+  });
+
+  it('filtra por estado e combina com a pesquisa', async () => {
+    const db = await novaBase();
+    const a = await repo.criarOrcamento(db);
+    const b = await repo.criarOrcamento(db);
+    await repo.atualizarOrcamento(db, a, { cliente: 'Ana', estado: 'aceite' });
+    await repo.atualizarOrcamento(db, b, { cliente: 'Ana Rita' });
+    expect((await repo.listarOrcamentos(db, { estado: 'aceite' })).map((o) => o.id)).toEqual([a]);
+    expect((await repo.listarOrcamentos(db, { estado: 'rascunho', pesquisa: 'ana' })).map((o) => o.id)).toEqual([b]);
+    expect(await repo.listarOrcamentos(db, { estado: 'entregue' })).toHaveLength(0);
+  });
+
+  it('ordena: próximas entregas primeiro, depois as passadas, e sem data no fim', async () => {
+    const db = await novaBase();
+    const criar = async (cliente: string, data_entrega: string | null) => {
+      const id = await repo.criarOrcamento(db);
+      await repo.atualizarOrcamento(db, id, { cliente, data_entrega });
+      return id;
+    };
+    await criar('sem data', null);
+    await criar('passada antiga', '2027-01-02');
+    await criar('daqui a uma semana', '2027-03-17');
+    await criar('hoje', '2027-03-10');
+    await criar('passada recente', '2027-03-01');
+    await criar('amanhã', '2027-03-11');
+    const ordem = (await repo.listarOrcamentos(db, { hoje: '2027-03-10' })).map((o) => o.cliente);
+    expect(ordem).toEqual(['hoje', 'amanhã', 'daqui a uma semana', 'passada recente', 'passada antiga', 'sem data']);
   });
 
   it('editar e remover linhas recalcula o total guardado', async () => {
@@ -200,6 +229,168 @@ describe('orçamentos', () => {
   });
 });
 
+describe('receitas', () => {
+  async function preparar() {
+    const db = await novaBase();
+    const farinha = await itemFarinha(db);
+    const caixaId = await repo.criarItem(db, {
+      tipo: 'material', nome: 'Caixa', unidade: 'un', preco_unidade_cent: 150, ativo: 1,
+    });
+    const rid = await repo.criarReceita(db, 'Massa de baunilha');
+    await repo.adicionarLinhaReceitaItem(db, rid, farinha.id, 0.5, 'g'); // 0,60 €
+    await repo.adicionarLinhaReceitaItem(db, rid, caixaId, 1, 'un'); // 1,50 €
+    await repo.adicionarLinhaReceitaLivre(db, rid, 'Corante', 100); // 1,00 €
+    return { db, farinha, caixaId, rid };
+  }
+
+  it('guarda linhas com os dados atuais do catálogo', async () => {
+    const { db, farinha, rid } = await preparar();
+    let r = (await repo.obterReceita(db, rid))!;
+    expect(r.linhas.map((l) => l.nome)).toEqual(['Farinha', 'Caixa', 'Corante']);
+    expect(r.linhas.map((l) => l.preco_unit_cent)).toEqual([120, 150, 100]);
+
+    // a receita usa sempre o preço atual
+    await repo.atualizarItem(db, farinha.id, { ...farinha, nome: 'Farinha T65', preco_unidade_cent: 200 });
+    r = (await repo.obterReceita(db, rid))!;
+    expect(r.linhas[0].nome).toBe('Farinha T65');
+    expect(r.linhas[0].preco_unit_cent).toBe(200);
+    expect((await repo.listarReceitas(db))[0].n_linhas).toBe(3);
+  });
+
+  it('aplicar a um bolo copia as linhas com escala só nos ingredientes', async () => {
+    const { db, rid } = await preparar();
+    const oid = await repo.criarOrcamento(db);
+    await repo.atualizarOrcamento(db, oid, { margem_pct: 0 });
+    await db.execAsync(`UPDATE orcamentos SET indireto_pct = 0 WHERE id = ${oid}`);
+    const boloId = (await repo.obterOrcamento(db, oid))!.bolos[0].id;
+
+    await repo.aplicarReceita(db, boloId, rid, 1.5);
+    const o = (await repo.obterOrcamento(db, oid))!;
+    const b = o.bolos[0];
+    expect(b.nome).toBe('Massa de baunilha'); // bolo vazio com nome por omissão
+    expect(b.linhas.map((l) => [l.descricao, l.quantidade, l.livre])).toEqual([
+      ['Farinha', 0.75, 0],
+      ['Caixa', 1, 0],
+      ['Corante', 1, 1],
+    ]);
+    expect(b.linhas.map((l) => l.unidade_entrada)).toEqual(['g', 'un', 'un']);
+    // 0,75 × 1,20 + 1,50 + 1,00 = 3,40 → 3 €
+    expect(o.total_cent).toBe(300);
+  });
+
+  it('juntar receitas ao mesmo bolo mantém as linhas e o nome', async () => {
+    const { db, rid } = await preparar();
+    const oid = await repo.criarOrcamento(db);
+    const boloId = (await repo.obterOrcamento(db, oid))!.bolos[0].id;
+    await repo.atualizarBolo(db, boloId, { nome: 'Aniversário Rui' });
+    await repo.aplicarReceita(db, boloId, rid, 1);
+    await repo.aplicarReceita(db, boloId, rid, 2);
+    const b = (await repo.obterOrcamento(db, oid))!.bolos[0];
+    expect(b.nome).toBe('Aniversário Rui');
+    expect(b.linhas).toHaveLength(6);
+    expect(b.linhas.map((l) => l.ordem)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(b.linhas[3].quantidade).toBe(1); // farinha 0,5 × 2
+  });
+
+  it('o bolo não depende da receita depois de aplicada', async () => {
+    const { db, farinha, rid } = await preparar();
+    const oid = await repo.criarOrcamento(db);
+    const boloId = (await repo.obterOrcamento(db, oid))!.bolos[0].id;
+    await repo.aplicarReceita(db, boloId, rid, 1);
+
+    const linhaFarinha = (await repo.obterReceita(db, rid))!.linhas[0];
+    await repo.atualizarLinhaReceita(db, linhaFarinha.id, { quantidade: 5, unidade_entrada: 'kg' });
+    await repo.atualizarItem(db, farinha.id, { ...farinha, preco_unidade_cent: 999 });
+    await repo.apagarReceita(db, rid);
+
+    const l = (await repo.obterOrcamento(db, oid))!.bolos[0].linhas[0];
+    expect(l.quantidade).toBe(0.5);
+    expect(l.preco_unit_cent).toBe(120);
+    expect(await repo.obterReceita(db, rid)).toBeNull();
+    expect(await db.getAllAsync('SELECT * FROM receita_linhas')).toHaveLength(0);
+  });
+
+  it('recusa receitas vazias e escalas inválidas', async () => {
+    const { db, rid } = await preparar();
+    const vazia = await repo.criarReceita(db);
+    const oid = await repo.criarOrcamento(db);
+    const boloId = (await repo.obterOrcamento(db, oid))!.bolos[0].id;
+    await expect(repo.aplicarReceita(db, boloId, vazia, 1)).rejects.toThrow('não tem linhas');
+    await expect(repo.aplicarReceita(db, boloId, rid, 0)).rejects.toThrow('escala');
+    await expect(repo.aplicarReceita(db, boloId, 999, 1)).rejects.toThrow('já não existe');
+    expect((await repo.obterOrcamento(db, oid))!.bolos[0].linhas).toHaveLength(0);
+  });
+
+  it('editar, remover linhas e renomear', async () => {
+    const { db, rid } = await preparar();
+    let r = (await repo.obterReceita(db, rid))!;
+    const livre = r.linhas[2];
+    await repo.atualizarLinhaReceita(db, livre.id, { descricao: 'Corante gel', valor_cent: 250 });
+    expect((await repo.obterLinhaReceita(db, livre.id))!.nome).toBe('Corante gel');
+    await repo.apagarLinhaReceita(db, r.linhas[1].id);
+    await repo.atualizarReceita(db, rid, { nome: 'Massa', notas: 'forma de 20 cm' });
+    r = (await repo.obterReceita(db, rid))!;
+    expect(r.nome).toBe('Massa');
+    expect(r.notas).toBe('forma de 20 cm');
+    expect(r.linhas.map((l) => l.preco_unit_cent)).toEqual([120, 250]);
+    expect((await repo.listarReceitas(db, 'mas')).map((x) => x.id)).toEqual([rid]);
+    expect(await repo.listarReceitas(db, 'chocolate')).toHaveLength(0);
+  });
+
+  it('não deixa apagar nem mudar a unidade de um item usado numa receita', async () => {
+    const { db, farinha, rid } = await preparar();
+    expect(await repo.receitasComItem(db, farinha.id)).toEqual(['Massa de baunilha']);
+    await expect(repo.apagarItem(db, farinha.id)).rejects.toThrow('Massa de baunilha');
+    await expect(repo.atualizarItem(db, farinha.id, { ...farinha, unidade: 'l' })).rejects.toThrow('unidade');
+    // mudar o resto continua possível
+    await repo.atualizarItem(db, farinha.id, { ...farinha, preco_unidade_cent: 130, ativo: 0 });
+
+    // depois de sair da receita, já se pode apagar
+    const linha = (await repo.obterReceita(db, rid))!.linhas[0];
+    await repo.apagarLinhaReceita(db, linha.id);
+    await repo.apagarItem(db, farinha.id);
+    expect(await repo.obterItem(db, farinha.id)).toBeNull();
+  });
+});
+
+describe('migração v1 → v2', () => {
+  it('mantém os dados de uma base da versão 0.1.0', async () => {
+    // O backup automático corre a sério sobre a base v1 (só não grava o ficheiro).
+    let backupAntes: backupModulo.Backup | null = null;
+    const espiao = jest.spyOn(backupModulo, 'guardarBackupAutomatico').mockImplementation(async (base) => {
+      backupAntes = await backupModulo.gerarBackup(base);
+    });
+    const db = abrirBaseDeTeste();
+    await db.execAsync(MIGRATIONS[0]);
+    await db.execAsync('PRAGMA user_version = 1');
+    await db.execAsync(`UPDATE definicoes SET nome_negocio = 'Doces', contacto = '912' WHERE id = 1`);
+    await db.execAsync(
+      `INSERT INTO items (tipo, nome, unidade, preco_unidade_cent, atualizado_em)
+       VALUES ('ingrediente', 'Açúcar', 'kg', 100, '2026-01-01')`,
+    );
+
+    await migrar(db);
+
+    expect(espiao).toHaveBeenCalledWith(db, 'pre-migracao-v1');
+    // o backup de antes da migração tem os dados v1 completos e volta a importar
+    const antes = backupAntes as backupModulo.Backup | null;
+    expect(antes!.versao_schema).toBe(1);
+    expect(antes!.tabelas.definicoes[0].contacto).toBe('912');
+    expect(antes!.tabelas.items).toHaveLength(1);
+    const outra = await novaBase();
+    await restaurarBackup(outra, validarBackup(JSON.parse(JSON.stringify(antes)), VERSAO_SCHEMA));
+    expect((await repo.listarItens(outra)).map((i) => i.nome)).toEqual(['Açúcar']);
+    const v = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+    expect(v?.user_version).toBe(2);
+    const d = await repo.obterDefinicoes(db);
+    expect(d.nome_negocio).toBe('Doces');
+    expect('contacto' in d).toBe(false);
+    expect((await repo.listarItens(db)).map((i) => i.nome)).toEqual(['Açúcar']);
+    expect(await repo.listarReceitas(db)).toEqual([]);
+    espiao.mockRestore();
+  });
+});
+
 describe('backup', () => {
   it('exporta e restaura todos os dados', async () => {
     const origem = await novaBase();
@@ -222,10 +413,57 @@ describe('backup', () => {
     expect(o.bolos[0].linhas[0].quantidade).toBe(0.5);
   });
 
-  it('recusa ficheiros que não são backups ou de outra versão', () => {
+  it('exporta e restaura receitas', async () => {
+    const origem = await novaBase();
+    const farinha = await itemFarinha(origem);
+    const rid = await repo.criarReceita(origem, 'Massa');
+    await repo.adicionarLinhaReceitaItem(origem, rid, farinha.id, 0.3, 'g');
+    const backup = validarBackup(JSON.parse(JSON.stringify(await gerarBackup(origem))), VERSAO_SCHEMA);
+
+    const destino = await novaBase();
+    await restaurarBackup(destino, backup);
+    const r = (await repo.obterReceita(destino, rid))!;
+    expect(r.nome).toBe('Massa');
+    expect(r.linhas[0].nome).toBe('Farinha');
+    expect(r.linhas[0].quantidade).toBe(0.3);
+  });
+
+  it('importa um backup da versão 0.1.0 (schema v1)', async () => {
+    const v1 = {
+      app: 'orcamentos-bolos',
+      versao_schema: 1,
+      exportado_em: '2026-11-01T10:00:00.000Z',
+      tabelas: {
+        definicoes: [{
+          id: 1, valor_hora_cent: 1200, custo_indireto_pct: 10, margem_pct: 30, moeda: 'EUR',
+          nome_negocio: 'Doces', contacto: '912', logotipo: null,
+        }],
+        items: [{ id: 1, tipo: 'ingrediente', nome: 'Farinha', unidade: 'kg', preco_unidade_cent: 120, ativo: 1, atualizado_em: 'x' }],
+        orcamentos: [],
+        orcamento_bolos: [],
+        orcamento_linhas: [],
+      },
+    };
+    const backup = validarBackup(v1, VERSAO_SCHEMA);
+    expect(backup.versao_schema).toBe(VERSAO_SCHEMA);
+    expect(v1.tabelas).not.toHaveProperty('receitas'); // não altera o original
+
+    const db = await novaBase();
+    await restaurarBackup(db, backup);
+    expect((await repo.obterDefinicoes(db)).valor_hora_cent).toBe(1200);
+    expect((await repo.listarItens(db)).map((i) => i.nome)).toEqual(['Farinha']);
+  });
+
+  it('recusa ficheiros que não são backups ou de versões mais recentes', () => {
     expect(() => validarBackup({ foo: 1 }, VERSAO_SCHEMA)).toThrow('não é um backup');
     expect(() =>
       validarBackup({ app: 'orcamentos-bolos', versao_schema: 99, tabelas: {} }, VERSAO_SCHEMA),
-    ).toThrow('versão');
+    ).toThrow('versão mais recente');
+    expect(() =>
+      validarBackup({ app: 'orcamentos-bolos', versao_schema: 0, tabelas: {} }, VERSAO_SCHEMA),
+    ).toThrow('versão de dados inválida');
+    expect(() =>
+      validarBackup({ app: 'orcamentos-bolos', versao_schema: VERSAO_SCHEMA, tabelas: {} }, VERSAO_SCHEMA),
+    ).toThrow('não tem a tabela');
   });
 });

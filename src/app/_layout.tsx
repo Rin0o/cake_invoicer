@@ -32,6 +32,9 @@ export default function RootLayout() {
             <Stack.Screen name="item/[id]" options={{ title: 'Item' }} />
             <Stack.Screen name="orcamento/[id]" options={{ title: 'Orçamento' }} />
             <Stack.Screen name="orcamento/linha" options={{ title: 'Linha' }} />
+            <Stack.Screen name="orcamento/receita" options={{ title: 'Adicionar receita' }} />
+            <Stack.Screen name="receita/[id]" options={{ title: 'Receita' }} />
+            <Stack.Screen name="receita/linha" options={{ title: 'Linha' }} />
           </Stack>
         </SQLiteProvider>
       </Suspense>

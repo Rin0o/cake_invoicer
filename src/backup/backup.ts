@@ -17,8 +17,12 @@ const MAX_BACKUPS_AUTOMATICOS = 10;
 
 /** Tabelas e colunas incluídas no backup, pela ordem de inserção (respeita as chaves estrangeiras). */
 export const TABELAS: Record<string, string[]> = {
-  definicoes: ['id', 'valor_hora_cent', 'custo_indireto_pct', 'margem_pct', 'moeda', 'nome_negocio', 'contacto', 'logotipo'],
+  definicoes: ['id', 'valor_hora_cent', 'custo_indireto_pct', 'margem_pct', 'moeda', 'nome_negocio'],
   items: ['id', 'tipo', 'nome', 'unidade', 'preco_unidade_cent', 'ativo', 'atualizado_em'],
+  receitas: ['id', 'nome', 'notas', 'atualizado_em'],
+  receita_linhas: [
+    'id', 'receita_id', 'item_id', 'livre', 'descricao', 'unidade_entrada', 'quantidade', 'valor_cent', 'ordem',
+  ],
   orcamentos: [
     'id', 'cliente', 'contacto', 'data_entrega', 'estado', 'notas', 'valor_hora_cent', 'indireto_pct',
     'margem_pct', 'total_calc_cent', 'total_cent', 'criado_em', 'atualizado_em',
@@ -42,10 +46,19 @@ async function versaoSchema(db: SQLiteDatabase) {
   return r?.user_version ?? 0;
 }
 
+/**
+ * Exporta todas as tabelas que existem na base, com todas as colunas, tal como estão.
+ * Não usa `TABELAS` de propósito: o backup automático antes de uma migração corre sobre o
+ * schema antigo, onde as tabelas novas ainda não existem. A versão gravada é a da base,
+ * e `validarBackup` converte-o ao importar.
+ */
 export async function gerarBackup(db: SQLiteDatabase): Promise<Backup> {
+  const existentes = await db.getAllAsync<{ name: string }>(
+    `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name`,
+  );
   const tabelas: Backup['tabelas'] = {};
-  for (const [nome, colunas] of Object.entries(TABELAS)) {
-    tabelas[nome] = await db.getAllAsync(`SELECT ${colunas.join(', ')} FROM ${nome}`);
+  for (const { name } of existentes) {
+    tabelas[name] = await db.getAllAsync(`SELECT * FROM "${name}"`);
   }
   return {
     app: APP_ID,
@@ -92,23 +105,47 @@ export async function guardarBackupAutomatico(db: SQLiteDatabase, motivo: string
   }
 }
 
+/**
+ * Passos para trazer um backup de uma versão antiga do schema para a seguinte.
+ * `ATUALIZAR_BACKUP[v]` converte um backup da versão v + 1 para a v + 2 (o índice 0 converte
+ * v1 → v2). Colunas que deixaram de existir são ignoradas ao restaurar; só é preciso
+ * acrescentar tabelas novas e preencher colunas novas obrigatórias.
+ * Ao acrescentar uma migration, acrescentar aqui o passo correspondente.
+ */
+const ATUALIZAR_BACKUP: ((t: Backup['tabelas']) => void)[] = [
+  // v1 → v2: receitas
+  (t) => {
+    t.receitas = [];
+    t.receita_linhas = [];
+  },
+];
+
 /** Valida a estrutura de um backup. Lança erro com mensagem legível se não for válido. */
 export function validarBackup(dados: unknown, versaoAtual: number): Backup {
   const b = dados as Partial<Backup> | null;
   if (!b || typeof b !== 'object' || b.app !== APP_ID || typeof b.tabelas !== 'object' || !b.tabelas) {
     throw new Error('Este ficheiro não é um backup desta app.');
   }
-  if (b.versao_schema !== versaoAtual) {
-    // TODO: quando houver migrations novas, migrar backups antigos em vez de os recusar.
+  const versao = b.versao_schema;
+  if (typeof versao !== 'number' || !Number.isInteger(versao) || versao < 1) {
+    throw new Error('O backup tem uma versão de dados inválida.');
+  }
+  if (versao > versaoAtual) {
     throw new Error(
-      `O backup é da versão de dados ${b.versao_schema} e a app usa a ${versaoAtual}. Não é possível importar.`,
+      `O backup é da versão de dados ${versao} e a app usa a ${versaoAtual}. ` +
+        'Instale a versão mais recente da app para o importar.',
     );
   }
-  for (const nome of Object.keys(TABELAS)) {
-    if (!Array.isArray(b.tabelas[nome])) throw new Error(`O backup não tem a tabela "${nome}".`);
+  let tabelas = b.tabelas;
+  if (versao < versaoAtual) {
+    tabelas = JSON.parse(JSON.stringify(tabelas)) as Backup['tabelas'];
+    for (let v = versao; v < versaoAtual; v++) ATUALIZAR_BACKUP[v - 1](tabelas);
   }
-  if (b.tabelas.definicoes!.length !== 1) throw new Error('O backup tem definições inválidas.');
-  return b as Backup;
+  for (const nome of Object.keys(TABELAS)) {
+    if (!Array.isArray(tabelas[nome])) throw new Error(`O backup não tem a tabela "${nome}".`);
+  }
+  if (tabelas.definicoes.length !== 1) throw new Error('O backup tem definições inválidas.');
+  return { app: APP_ID, versao_schema: versaoAtual, exportado_em: String(b.exportado_em ?? ''), tabelas };
 }
 
 /** Substitui todos os dados pelos do backup, numa só transação. */
