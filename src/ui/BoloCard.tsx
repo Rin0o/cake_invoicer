@@ -1,0 +1,217 @@
+import { router } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { StyleSheet, View } from 'react-native';
+import { Button, Card, Divider, IconButton, List, Text, TextInput } from 'react-native-paper';
+
+import {
+  apagarBolo,
+  atualizarBolo,
+  definirPrecoFinal,
+  type BoloComLinhas,
+  type Linha,
+  type Orcamento,
+} from '@/db/repo';
+import {
+  formatarDecimal,
+  formatarEuro,
+  formatarEuroInteiro,
+  formatarPrecoUnidade,
+  formatarTempo,
+  lerDecimal,
+  lerTempo,
+} from '@/domain/format';
+import { valorLinha, type BoloCalculado } from '@/domain/pricing';
+import { deUnidadeItem } from '@/domain/units';
+import { CampoAutoGuardado } from '@/ui/CampoAutoGuardado';
+import { confirmar, mostrarErro } from '@/ui/confirmar';
+import { espaco, tema } from '@/ui/theme';
+
+interface Props {
+  bolo: BoloComLinhas;
+  calc: BoloCalculado;
+  orcamento: Orcamento;
+  /** Chamado depois de qualquer alteraÃ§Ã£o guardada, para recarregar o orÃ§amento. */
+  aoMudar: () => Promise<void>;
+}
+
+function descricaoLinha(l: Linha) {
+  if (l.livre) return 'Linha livre';
+  const q = deUnidadeItem(l.quantidade, l.unidade_entrada, l.unidade);
+  return `${formatarDecimal(q)} ${l.unidade_entrada} Ã— ${formatarPrecoUnidade(l.preco_unit_cent, l.unidade)}`;
+}
+
+function LinhaResumo({ rotulo, valor, forte }: { rotulo: string; valor: string; forte?: boolean }) {
+  return (
+    <View style={styles.resumoLinha}>
+      <Text variant={forte ? 'titleSmall' : 'bodyMedium'} style={!forte && styles.secundario}>
+        {rotulo}
+      </Text>
+      <Text variant={forte ? 'titleSmall' : 'bodyMedium'}>{valor}</Text>
+    </View>
+  );
+}
+
+export function BoloCard({ bolo, calc, orcamento, aoMudar }: Props) {
+  const db = useSQLiteContext();
+
+  async function executar(fn: () => Promise<void>) {
+    try {
+      await fn();
+      await aoMudar();
+    } catch (e) {
+      mostrarErro(e);
+    }
+  }
+
+  async function apagar() {
+    if (await confirmar(`Apagar "${bolo.nome}"?`, 'O bolo e todas as suas linhas saem do orÃ§amento.')) {
+      await executar(() => apagarBolo(db, bolo.id));
+    }
+  }
+
+  const horas = formatarDecimal(bolo.tempo_min / 60, 2);
+
+  return (
+    <Card mode="outlined" style={styles.card}>
+      <Card.Content style={styles.conteudo}>
+        <View style={styles.cabecalho}>
+          <CampoAutoGuardado
+            style={styles.flex}
+            label="Nome do bolo"
+            valor={bolo.nome}
+            aoGuardar={async (t) => {
+              if (!t.trim()) return 'Indique um nome.';
+              await executar(() => atualizarBolo(db, bolo.id, { nome: t.trim() }));
+            }}
+          />
+          <IconButton icon="delete-outline" onPress={apagar} accessibilityLabel="Apagar bolo" />
+        </View>
+
+        {bolo.linhas.length === 0 ? (
+          <Text style={styles.secundario}>Ainda sem ingredientes.</Text>
+        ) : (
+          <View>
+            {bolo.linhas.map((l) => (
+              <List.Item
+                key={l.id}
+                title={l.descricao}
+                description={descricaoLinha(l)}
+                style={styles.linha}
+                onPress={() => router.push({ pathname: '/orcamento/linha', params: { linhaId: String(l.id) } })}
+                right={() => <Text style={styles.valorLinha}>{formatarEuro(valorLinha({ quantidade: l.quantidade, precoUnitCent: l.preco_unit_cent }))}</Text>}
+              />
+            ))}
+          </View>
+        )}
+
+        <View style={styles.botoes}>
+          <Button
+            mode="contained-tonal"
+            icon="plus"
+            compact
+            onPress={() => router.push({ pathname: '/orcamento/linha', params: { boloId: String(bolo.id) } })}>
+            Ingrediente / material
+          </Button>
+          <Button
+            mode="text"
+            icon="plus"
+            compact
+            onPress={() =>
+              router.push({ pathname: '/orcamento/linha', params: { boloId: String(bolo.id), livre: '1' } })
+            }>
+            Linha livre
+          </Button>
+        </View>
+
+        <CampoAutoGuardado
+          label="Tempo de trabalho"
+          valor={bolo.tempo_min ? formatarTempo(bolo.tempo_min) : ''}
+          ajuda="Ex.: 2h30, 2:30 ou 150 (minutos)"
+          aoGuardar={async (t) => {
+            const min = t.trim() === '' ? 0 : lerTempo(t);
+            if (min === null) return 'Tempo invÃ¡lido. Use, por exemplo, 2h30 ou 150.';
+            await executar(() => atualizarBolo(db, bolo.id, { tempo_min: min }));
+          }}
+        />
+
+        <Divider />
+
+        <View>
+          <LinhaResumo rotulo="Ingredientes e materiais" valor={formatarEuro(calc.materiaisCent)} />
+          <LinhaResumo
+            rotulo={`Tempo (${horas} h Ã— ${formatarEuro(orcamento.valor_hora_cent)})`}
+            valor={formatarEuro(calc.tempoCent)}
+          />
+          <LinhaResumo
+            rotulo={`Custos indiretos (${formatarDecimal(orcamento.indireto_pct, 2)} %)`}
+            valor={formatarEuro(calc.indiretosCent)}
+          />
+          <LinhaResumo rotulo="Custo" valor={formatarEuro(calc.custoCent)} forte />
+          <LinhaResumo
+            rotulo={`Margem (${formatarDecimal(orcamento.margem_pct, 2)} % dos materiais)`}
+            valor={formatarEuro(calc.margemCent)}
+          />
+          <LinhaResumo rotulo="PreÃ§o calculado" valor={formatarEuroInteiro(calc.precoCalcCent)} forte />
+        </View>
+
+        <CampoAutoGuardado
+          label="PreÃ§o final"
+          valor={String(calc.precoFinalCent / 100)}
+          keyboardType="decimal-pad"
+          right={<TextInput.Affix text="â‚¬" />}
+          aoGuardar={async (t) => {
+            const n = lerDecimal(t);
+            if (n === null || n < 0) return 'Valor invÃ¡lido.';
+            const cent = Math.round(n) * 100;
+            await executar(() =>
+              definirPrecoFinal(db, bolo.id, cent === calc.precoCalcCent ? null : cent, calc.precoCalcCent),
+            );
+          }}
+        />
+
+        {calc.ajustado ? (
+          <View style={styles.ajuste}>
+            <Text variant="bodyMedium" style={styles.flex}>
+              Ajustado: {calc.diferencaCent > 0 ? '+' : ''}
+              {formatarEuroInteiro(calc.diferencaCent)} face ao calculado.
+            </Text>
+            <Button
+              mode="outlined"
+              compact
+              icon="restore"
+              onPress={() => executar(() => definirPrecoFinal(db, bolo.id, null, calc.precoCalcCent))}>
+              Repor calculado
+            </Button>
+          </View>
+        ) : null}
+        {calc.calculadoMudou ? (
+          <Text variant="bodySmall" style={styles.aviso}>
+            O preÃ§o calculado mudou desde o ajuste: era{' '}
+            {formatarEuroInteiro(bolo.preco_calc_no_ajuste_cent ?? 0)}, agora Ã©{' '}
+            {formatarEuroInteiro(calc.precoCalcCent)}.
+          </Text>
+        ) : null}
+        {calc.abaixoDoCusto ? (
+          <Text variant="bodySmall" style={styles.erro}>
+            AtenÃ§Ã£o: o preÃ§o final estÃ¡ abaixo do custo ({formatarEuro(calc.custoCent)}).
+          </Text>
+        ) : null}
+      </Card.Content>
+    </Card>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: { marginHorizontal: espaco.m, marginBottom: espaco.m },
+  conteudo: { gap: espaco.s },
+  cabecalho: { flexDirection: 'row', alignItems: 'flex-start' },
+  flex: { flex: 1 },
+  linha: { paddingHorizontal: 0, paddingVertical: 2 },
+  valorLinha: { alignSelf: 'center' },
+  botoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco.s },
+  resumoLinha: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2, gap: espaco.s },
+  secundario: { color: tema.colors.onSurfaceVariant, flexShrink: 1 },
+  ajuste: { flexDirection: 'row', alignItems: 'center', gap: espaco.s },
+  aviso: { color: tema.colors.secondary },
+  erro: { color: tema.colors.error },
+});

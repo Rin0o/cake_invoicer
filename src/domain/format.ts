@@ -1,0 +1,104 @@
+/** Formatação e leitura de valores no formato português (vírgula decimal). */
+
+/** Lê um número escrito como "1,5", "1.5" ou " 2 ". Devolve `null` se não for válido. */
+export function lerDecimal(texto: string): number | null {
+  const limpo = texto.trim().replace(/\s/g, '').replace(',', '.');
+  if (limpo === '' || !/^-?\d*\.?\d*$/.test(limpo) || limpo === '.' || limpo === '-') return null;
+  const n = Number(limpo);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Lê um valor em euros ("1,20") e devolve cêntimos inteiros (120). */
+export function lerEurosParaCent(texto: string): number | null {
+  const n = lerDecimal(texto);
+  return n === null ? null : Math.round(n * 100);
+}
+
+/** Formata um número com vírgula decimal, sem zeros desnecessários (máx. `casas`). */
+export function formatarDecimal(n: number, casas = 3): string {
+  const fixo = n.toFixed(casas).replace(/\.?0+$/, '');
+  return fixo.replace('.', ',');
+}
+
+function agruparMilhares(inteiro: string): string {
+  return inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+/** 12345 → "123,45 €". Arredonda ao cêntimo. */
+export function formatarEuro(cent: number): string {
+  const negativo = cent < 0;
+  const abs = Math.round(Math.abs(cent));
+  const euros = Math.floor(abs / 100);
+  const resto = String(abs % 100).padStart(2, '0');
+  return `${negativo ? '−' : ''}${agruparMilhares(String(euros))},${resto} €`;
+}
+
+/** 120, "kg" → "1,20 €/kg". */
+export function formatarPrecoUnidade(cent: number, unidade: string): string {
+  return `${formatarEuro(cent)}/${unidade}`;
+}
+
+/** Para valores já arredondados ao euro: 4500 → "45 €". */
+export function formatarEuroInteiro(cent: number): string {
+  const negativo = cent < 0;
+  const euros = Math.round(Math.abs(cent) / 100);
+  return `${negativo ? '−' : ''}${agruparMilhares(String(euros))} €`;
+}
+
+/** Valor em cêntimos para um campo de texto: 120 → "1,20". */
+export function centParaTexto(cent: number): string {
+  return (cent / 100).toFixed(2).replace('.', ',');
+}
+
+/**
+ * Lê um tempo de trabalho e devolve minutos.
+ * Aceita "150" (minutos), "2h", "2h30", "2:30", "1,5h".
+ */
+export function lerTempo(texto: string): number | null {
+  const t = texto.trim().toLowerCase().replace(/\s/g, '');
+  if (t === '') return null;
+
+  const hm = /^(\d+)[:h](\d{1,2})?(?:m|min)?$/.exec(t);
+  if (hm) {
+    const minutos = hm[2] ? Number(hm[2]) : 0;
+    if (minutos >= 60) return null;
+    return Number(hm[1]) * 60 + minutos;
+  }
+
+  const horasDecimais = /^(\d+(?:[.,]\d+)?)h$/.exec(t);
+  if (horasDecimais) return Math.round(lerDecimal(horasDecimais[1])! * 60);
+
+  const minutos = /^(\d+)(?:m|min)?$/.exec(t);
+  if (minutos) return Number(minutos[1]);
+
+  return null;
+}
+
+/** 150 → "2h30", 45 → "45 min", 120 → "2h". */
+export function formatarTempo(min: number): string {
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, '0')}`;
+}
+
+/** Lê "dd/mm/aaaa" e devolve "aaaa-mm-dd". Aceita também "d/m/aa". */
+export function lerData(texto: string): string | null {
+  const m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})$/.exec(texto.trim());
+  if (!m) return null;
+  const dia = Number(m[1]);
+  const mes = Number(m[2]);
+  const ano = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+  const d = new Date(Date.UTC(ano, mes - 1, dia));
+  if (d.getUTCFullYear() !== ano || d.getUTCMonth() !== mes - 1 || d.getUTCDate() !== dia) {
+    return null;
+  }
+  return `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+}
+
+/** "aaaa-mm-dd" → "dd/mm/aaaa". */
+export function formatarData(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const [a, m, d] = iso.split('-');
+  return `${d}/${m}/${a}`;
+}
