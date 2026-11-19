@@ -9,11 +9,14 @@ o [Semantic Versioning](https://semver.org/lang/pt-BR/):
 - **MINOR**: funcionalidade nova.
 - **PATCH**: correção.
 
+Enquanto a versão for `0.x`, a app está em desenvolvimento inicial: uma versão MINOR pode trazer
+alterações incompatíveis (que ficam assinaladas aqui). A `1.0.0` marca a primeira versão estável.
+
 Cada versão distribuída tem também um `android.versionCode` (em `app.json`) maior do que o da anterior.
 
 ## [Por lançar]
 
-## [1.0.0] — MVP
+## [0.1.0] — MVP
 
 Primeira versão (fase 1 da especificação).
 
@@ -38,5 +41,5 @@ Primeira versão (fase 1 da especificação).
 
 - v1: `items`, `definicoes`, `orcamentos`, `orcamento_bolos`, `orcamento_linhas`.
 
-[Por lançar]: https://github.com/Rin0o/cake_invoicer/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/Rin0o/cake_invoicer/releases/tag/v1.0.0
+[Por lançar]: https://github.com/Rin0o/cake_invoicer/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Rin0o/cake_invoicer/releases/tag/v0.1.0
