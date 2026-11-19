@@ -1,0 +1,7 @@
+# Fins de linha LF no repositório, independentemente do sistema (Windows/macOS/Linux).
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ttf binary
+*.jks binary

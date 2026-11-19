@@ -1,0 +1,38 @@
+name: Build APK
+
+# Gera o APK no EAS (Expo). Corre à mão em Actions → Build APK → Run workflow,
+# ou automaticamente ao publicar uma tag vX.Y.Z.
+#
+# Requer o secret EXPO_TOKEN (expo.dev → Account settings → Access tokens) em
+# Settings → Secrets and variables → Actions.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Testes antes do build
+        run: npm run check
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build no EAS
+        # --no-wait: o build corre no EAS; o link para o APK aparece em expo.dev.
+        run: eas build --platform android --profile apk --non-interactive --no-wait
