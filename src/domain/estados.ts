@@ -11,6 +11,33 @@ export const NOME_ESTADO: Record<EstadoOrcamento, string> = {
   entregue: 'Entregue',
 };
 
+export interface PassoSeguinte {
+  estado: EstadoOrcamento;
+  /** Texto do botão (curto, para caber ao lado do estado). */
+  rotulo: string;
+  /** Texto completo, para leitores de ecrã. */
+  descricao: string;
+  /** O passo mais provável (botão em destaque). */
+  principal: boolean;
+}
+
+const PASSOS: Record<EstadoOrcamento, PassoSeguinte[]> = {
+  // Enviar o PDF ou o texto já passa um rascunho a "enviado".
+  rascunho: [],
+  enviado: [
+    { estado: 'aceite', rotulo: 'Aceitou', descricao: 'Cliente aceitou', principal: true },
+    { estado: 'recusado', rotulo: 'Recusou', descricao: 'Cliente recusou', principal: false },
+  ],
+  aceite: [{ estado: 'entregue', rotulo: 'Entregue', descricao: 'Marcar como entregue', principal: true }],
+  recusado: [],
+  entregue: [],
+};
+
+/** Ações sugeridas a partir de um estado. Os outros estados escolhem-se à mão. */
+export function passosSeguintes(estado: EstadoOrcamento): PassoSeguinte[] {
+  return PASSOS[estado];
+}
+
 /** Estado do orçamento depois de ser partilhado com o cliente. */
 export function estadoDepoisDePartilhar(estado: EstadoOrcamento): EstadoOrcamento {
   return estado === 'rascunho' ? 'enviado' : estado;

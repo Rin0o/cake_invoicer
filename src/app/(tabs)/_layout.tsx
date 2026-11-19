@@ -1,16 +1,26 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Tabs } from 'expo-router';
-import type { ColorValue } from 'react-native';
+import { Image, StyleSheet, type ColorValue } from 'react-native';
 
-import { tema } from '@/ui/theme';
+import { corCabecalho, espaco, tema } from '@/ui/theme';
 
 type Icone = keyof typeof MaterialCommunityIcons.glyphMap;
-type PropsIcone = { color: ColorValue | null; size: number };
+type PropsIcone = { color: ColorValue | null; size: number; focused: boolean };
 
-function icone(nome: Icone) {
-  return function IconeTab({ color, size }: PropsIcone) {
-    return <MaterialCommunityIcons name={nome} color={typeof color === 'string' ? color : undefined} size={size} />;
+function icone(nome: Icone, nomeAtivo: Icone) {
+  return function IconeTab({ color, size, focused }: PropsIcone) {
+    return (
+      <MaterialCommunityIcons
+        name={focused ? nomeAtivo : nome}
+        color={typeof color === 'string' ? color : undefined}
+        size={size}
+      />
+    );
   };
+}
+
+function Logo() {
+  return <Image source={require('../../../assets/images/logo.png')} style={styles.logo} accessibilityIgnoresInvertColors />;
 }
 
 export default function TabLayout() {
@@ -18,13 +28,28 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: tema.colors.primary,
-        headerStyle: { backgroundColor: tema.colors.surface },
+        tabBarInactiveTintColor: tema.colors.onSurfaceVariant,
+        tabBarStyle: { backgroundColor: tema.colors.surface, borderTopColor: tema.colors.outlineVariant },
+        tabBarLabelStyle: styles.rotulo,
+        headerStyle: { backgroundColor: corCabecalho },
+        headerTitleStyle: styles.titulo,
+        headerTintColor: tema.colors.primary,
+        headerLeft: Logo,
         sceneStyle: { backgroundColor: tema.colors.background },
       }}>
-      <Tabs.Screen name="index" options={{ title: 'Orçamentos', tabBarIcon: icone('file-document-outline') }} />
-      <Tabs.Screen name="receitas" options={{ title: 'Receitas', tabBarIcon: icone('book-open-variant') }} />
-      <Tabs.Screen name="catalogo" options={{ title: 'Catálogo', tabBarIcon: icone('basket-outline') }} />
-      <Tabs.Screen name="definicoes" options={{ title: 'Definições', tabBarIcon: icone('cog-outline') }} />
+      <Tabs.Screen
+        name="index"
+        options={{ title: 'Orçamentos', tabBarIcon: icone('file-document-outline', 'file-document') }}
+      />
+      <Tabs.Screen name="receitas" options={{ title: 'Receitas', tabBarIcon: icone('book-outline', 'book-open-variant') }} />
+      <Tabs.Screen name="catalogo" options={{ title: 'Catálogo', tabBarIcon: icone('basket-outline', 'basket') }} />
+      <Tabs.Screen name="definicoes" options={{ title: 'Definições', tabBarIcon: icone('cog-outline', 'cog') }} />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  logo: { width: 36, height: 36, marginLeft: espaco.m },
+  titulo: { fontWeight: 'bold' },
+  rotulo: { fontWeight: '600' },
+});

@@ -2,16 +2,19 @@ import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
-import { Chip, Divider, FAB, List, Searchbar, Text } from 'react-native-paper';
+import { Chip, FAB, Searchbar, Text } from 'react-native-paper';
 
-import { criarOrcamento, listarOrcamentos, type ResumoOrcamento } from '@/db/repo';
+import { atualizarOrcamento, criarOrcamento, listarOrcamentos, type ResumoOrcamento } from '@/db/repo';
 import { ESTADOS, NOME_ESTADO, type EstadoOrcamento } from '@/domain/estados';
 import { formatarData, formatarEuroInteiro } from '@/domain/format';
+import { CartaoLista, Etiqueta } from '@/ui/CartaoLista';
 import { mostrarErro } from '@/ui/confirmar';
-import { espaco, tema } from '@/ui/theme';
+import { DialogoEstado } from '@/ui/Estado';
+import { avisar } from '@/ui/Guardar';
+import { COR_ESTADO, espaco, estiloChipEstado, tema } from '@/ui/theme';
 
-function descricao(o: ResumoOrcamento) {
-  const partes: string[] = [NOME_ESTADO[o.estado]];
+function detalhes(o: ResumoOrcamento) {
+  const partes: string[] = [];
   if (o.data_entrega) partes.push(`Entrega ${formatarData(o.data_entrega)}`);
   partes.push(o.n_bolos === 1 ? '1 bolo' : `${o.n_bolos} bolos`);
   return partes.join(' · ');
@@ -22,12 +25,24 @@ export default function Orcamentos() {
   const [pesquisa, setPesquisa] = useState('');
   const [estado, setEstado] = useState<EstadoOrcamento | null>(null);
   const [lista, setLista] = useState<ResumoOrcamento[]>([]);
+  /** Orçamento cujo estado se está a mudar (toque longo). */
+  const [aMudar, setAMudar] = useState<ResumoOrcamento | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      listarOrcamentos(db, { pesquisa, estado }).then(setLista).catch(mostrarErro);
-    }, [db, pesquisa, estado]),
-  );
+  const carregar = useCallback(() => {
+    listarOrcamentos(db, { pesquisa, estado }).then(setLista).catch(mostrarErro);
+  }, [db, pesquisa, estado]);
+
+  useFocusEffect(carregar);
+
+  async function mudarEstado(o: ResumoOrcamento, novo: EstadoOrcamento) {
+    try {
+      await atualizarOrcamento(db, o.id, { estado: novo });
+      avisar(`${o.cliente || 'Orçamento'}: ${NOME_ESTADO[novo]}`);
+      carregar();
+    } catch (e) {
+      mostrarErro(e);
+    }
+  }
 
   async function novo() {
     try {
@@ -54,7 +69,12 @@ export default function Orcamentos() {
             Todos
           </Chip>
           {ESTADOS.map((e) => (
-            <Chip key={e} selected={estado === e} showSelectedOverlay onPress={() => setEstado(estado === e ? null : e)}>
+            <Chip
+              key={e}
+              selected={estado === e}
+              showSelectedOverlay
+              {...estiloChipEstado(e, estado === e)}
+              onPress={() => setEstado(estado === e ? null : e)}>
               {NOME_ESTADO[e]}
             </Chip>
           ))}
@@ -63,26 +83,47 @@ export default function Orcamentos() {
       <FlatList
         data={lista}
         keyExtractor={(o) => String(o.id)}
-        ItemSeparatorComponent={Divider}
         contentContainerStyle={styles.lista}
         ListEmptyComponent={
           <Text style={styles.vazio} variant="bodyLarge">
             {filtrado ? 'Nenhum orçamento encontrado.' : 'Ainda não há orçamentos.\nToque em + para criar o primeiro.'}
           </Text>
         }
-        renderItem={({ item: o }) => (
-          <List.Item
-            title={o.cliente || 'Sem cliente'}
-            titleStyle={!o.cliente && styles.semCliente}
-            description={descricao(o)}
-            onPress={() => router.push({ pathname: '/orcamento/[id]', params: { id: String(o.id) } })}
-            right={() => (
-              <Text variant="titleMedium" style={styles.total}>
-                {formatarEuroInteiro(o.total_cent)}
-              </Text>
-            )}
-          />
-        )}
+        renderItem={({ item: o }) => {
+          const cor = COR_ESTADO[o.estado];
+          return (
+            <CartaoLista
+              titulo={o.cliente || 'Sem cliente'}
+              tituloEstilo={!o.cliente && styles.semCliente}
+              icone={cor.icone}
+              corIcone={cor.texto}
+              fundoIcone={cor.fundo}
+              descricao={
+                <View style={styles.linhaDetalhes}>
+                  <Etiqueta texto={NOME_ESTADO[o.estado]} cor={cor.texto} fundo={cor.fundo} />
+                  <Text variant="bodySmall" numberOfLines={1} style={styles.detalhes}>
+                    {detalhes(o)}
+                  </Text>
+                </View>
+              }
+              direita={
+                <Text variant="titleMedium" style={styles.total}>
+                  {formatarEuroInteiro(o.total_cent)}
+                </Text>
+              }
+              onPress={() => router.push({ pathname: '/orcamento/[id]', params: { id: String(o.id) } })}
+              onLongPress={() => setAMudar(o)}
+              dicaAcessibilidade="Toque longo para mudar o estado"
+            />
+          );
+        }}
+      />
+      <DialogoEstado
+        visivel={aMudar !== null}
+        titulo={aMudar?.cliente || 'Mudar estado'}
+        estado={aMudar?.estado ?? null}
+        aoEscolher={(e) => aMudar && mudarEstado(aMudar, e)}
+        aoFechar={() => setAMudar(null)}
       />
       <FAB icon="plus" label="Novo" style={styles.fab} onPress={novo} />
     </View>
@@ -91,11 +132,13 @@ export default function Orcamentos() {
 
 const styles = StyleSheet.create({
   ecra: { flex: 1 },
-  pesquisa: { margin: espaco.m, marginBottom: espaco.s },
+  pesquisa: { margin: espaco.m, marginBottom: espaco.s, backgroundColor: tema.colors.surface },
   filtros: { gap: espaco.s, paddingHorizontal: espaco.m, paddingBottom: espaco.s },
-  lista: { paddingBottom: 96 },
+  lista: { paddingTop: espaco.xs, paddingBottom: 96 },
   vazio: { textAlign: 'center', marginTop: espaco.l * 2, color: tema.colors.onSurfaceVariant },
   semCliente: { fontStyle: 'italic', color: tema.colors.onSurfaceVariant },
-  total: { alignSelf: 'center' },
+  linhaDetalhes: { flexDirection: 'row', alignItems: 'center', gap: espaco.s },
+  detalhes: { flexShrink: 1, color: tema.colors.onSurfaceVariant },
+  total: { fontWeight: 'bold', color: tema.colors.primary },
   fab: { position: 'absolute', right: espaco.m, bottom: espaco.m },
 });

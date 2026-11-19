@@ -1,10 +1,12 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
-import { Divider, FAB, List, Searchbar, Text } from 'react-native-paper';
+import { FAB, Searchbar, Text } from 'react-native-paper';
 
 import { criarReceita, listarReceitas, type ResumoReceita } from '@/db/repo';
+import { CartaoLista } from '@/ui/CartaoLista';
 import { mostrarErro } from '@/ui/confirmar';
 import { espaco, tema } from '@/ui/theme';
 
@@ -34,7 +36,6 @@ export default function Receitas() {
       <FlatList
         data={lista}
         keyExtractor={(r) => String(r.id)}
-        ItemSeparatorComponent={Divider}
         contentContainerStyle={styles.lista}
         ListEmptyComponent={
           <Text style={styles.vazio} variant="bodyLarge">
@@ -44,10 +45,14 @@ export default function Receitas() {
           </Text>
         }
         renderItem={({ item: r }) => (
-          <List.Item
-            title={r.nome || 'Sem nome'}
-            titleStyle={!r.nome && styles.semNome}
-            description={r.n_linhas === 1 ? '1 linha' : `${r.n_linhas} linhas`}
+          <CartaoLista
+            titulo={r.nome || 'Sem nome'}
+            tituloEstilo={!r.nome && styles.semNome}
+            descricao={r.n_linhas === 1 ? '1 linha' : `${r.n_linhas} linhas`}
+            icone="book-open-variant"
+            corIcone={tema.colors.onPrimaryContainer}
+            fundoIcone={tema.colors.primaryContainer}
+            direita={<MaterialCommunityIcons name="chevron-right" size={24} color={tema.colors.outline} />}
             onPress={() => router.push({ pathname: '/receita/[id]', params: { id: String(r.id) } })}
           />
         )}
@@ -59,8 +64,8 @@ export default function Receitas() {
 
 const styles = StyleSheet.create({
   ecra: { flex: 1 },
-  pesquisa: { margin: espaco.m, marginBottom: espaco.s },
-  lista: { paddingBottom: 96 },
+  pesquisa: { margin: espaco.m, marginBottom: espaco.s, backgroundColor: tema.colors.surface },
+  lista: { paddingTop: espaco.xs, paddingBottom: 96 },
   vazio: { textAlign: 'center', marginTop: espaco.l * 2, marginHorizontal: espaco.l, color: tema.colors.onSurfaceVariant },
   semNome: { fontStyle: 'italic', color: tema.colors.onSurfaceVariant },
   fab: { position: 'absolute', right: espaco.m, bottom: espaco.m },

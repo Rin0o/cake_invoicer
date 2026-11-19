@@ -1,7 +1,8 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { StyleSheet, View } from 'react-native';
-import { Button, Card, Divider, List, Text, TextInput } from 'react-native-paper';
+import { Button, Card, Divider, IconButton, List, Text, TextInput, TouchableRipple } from 'react-native-paper';
 
 import {
   apagarBolo,
@@ -24,7 +25,7 @@ import { valorLinha, type BoloCalculado } from '@/domain/pricing';
 import { deUnidadeItem } from '@/domain/units';
 import { CampoAutoGuardado } from '@/ui/CampoAutoGuardado';
 import { confirmar, mostrarErro } from '@/ui/confirmar';
-import { useGestor } from '@/ui/Guardar';
+import { useColapsavel, useGestor } from '@/ui/Guardar';
 import { MenuMais } from '@/ui/MenuMais';
 import { espaco, tema } from '@/ui/theme';
 
@@ -34,6 +35,8 @@ interface Props {
   orcamento: Orcamento;
   /** Chamado depois de qualquer alteração guardada, para recarregar o orçamento. */
   aoMudar: () => Promise<void>;
+  /** Se o cartão começa aberto (com todos os campos) ou fechado (só nome e preço). */
+  inicialAberto?: boolean;
 }
 
 function descricaoLinha(l: Linha) {
@@ -53,9 +56,10 @@ function LinhaResumo({ rotulo, valor, forte }: { rotulo: string; valor: string; 
   );
 }
 
-export function BoloCard({ bolo, calc, orcamento, aoMudar }: Props) {
+export function BoloCard({ bolo, calc, orcamento, aoMudar, inicialAberto = true }: Props) {
   const db = useSQLiteContext();
   const gestor = useGestor();
+  const { aberto, alternar } = useColapsavel(inicialAberto);
 
   /** Grava e recarrega; usado pelos campos (o `CampoAutoGuardado` trata dos erros). */
   async function mudar(fn: () => Promise<void>) {
@@ -83,11 +87,56 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar }: Props) {
   }
 
   const horas = formatarDecimal(bolo.tempo_min / 60, 2);
+  const menu = (
+    <MenuMais
+      descricao="Mais opções do bolo"
+      opcoes={[{ titulo: 'Apagar bolo', icone: 'delete-outline', aoEscolher: apagar, destrutiva: true }]}
+    />
+  );
+
+  if (!aberto) {
+    return (
+      <Card mode="outlined" style={styles.card}>
+        <TouchableRipple onPress={alternar} borderless style={styles.toque} accessibilityLabel={`Abrir ${bolo.nome}`}>
+          <View style={styles.fechado}>
+            <MaterialCommunityIcons name="chevron-down" size={24} color={tema.colors.onSurfaceVariant} />
+            <View style={styles.flex}>
+              <Text variant="titleMedium" numberOfLines={1}>
+                {bolo.nome}
+              </Text>
+              <Text variant="bodySmall" style={styles.secundario}>
+                {bolo.linhas.length === 1 ? '1 linha' : `${bolo.linhas.length} linhas`}
+                {calc.ajustado ? ' · preço ajustado' : ''}
+              </Text>
+            </View>
+            {calc.abaixoDoCusto ? (
+              <MaterialCommunityIcons
+                name="alert-circle"
+                size={20}
+                color={tema.colors.error}
+                accessibilityLabel="Preço abaixo do custo"
+              />
+            ) : null}
+            <Text variant="titleMedium" style={styles.precoFechado}>
+              {formatarEuroInteiro(calc.precoFinalCent)}
+            </Text>
+            {menu}
+          </View>
+        </TouchableRipple>
+      </Card>
+    );
+  }
 
   return (
     <Card mode="outlined" style={styles.card}>
       <Card.Content style={styles.conteudo}>
         <View style={styles.cabecalho}>
+          <IconButton
+            icon="chevron-up"
+            onPress={alternar}
+            accessibilityLabel={`Fechar ${bolo.nome}`}
+            style={styles.botaoFechar}
+          />
           <CampoAutoGuardado
             style={styles.flex}
             label="Nome do bolo"
@@ -97,10 +146,7 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar }: Props) {
               await mudar(() => atualizarBolo(db, bolo.id, { nome: t.trim() }));
             }}
           />
-          <MenuMais
-            descricao="Mais opções do bolo"
-            opcoes={[{ titulo: 'Apagar bolo', icone: 'delete-outline', aoEscolher: apagar, destrutiva: true }]}
-          />
+          {menu}
         </View>
 
         {bolo.linhas.length === 0 ? (
@@ -228,6 +274,10 @@ const styles = StyleSheet.create({
   card: { marginHorizontal: espaco.m, marginBottom: espaco.m },
   conteudo: { gap: espaco.s },
   cabecalho: { flexDirection: 'row', alignItems: 'flex-start' },
+  botaoFechar: { marginLeft: -espaco.s, marginRight: 0 },
+  toque: { borderRadius: tema.roundness * 3 },
+  fechado: { flexDirection: 'row', alignItems: 'center', gap: espaco.s, paddingLeft: espaco.m, paddingVertical: espaco.xs },
+  precoFechado: { fontWeight: 'bold', color: tema.colors.primary },
   flex: { flex: 1 },
   linha: { paddingHorizontal: 0, paddingVertical: 2 },
   valorLinha: { alignSelf: 'center' },

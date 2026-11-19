@@ -83,6 +83,25 @@ export function useGestorGuardar(): Gestor {
   return useMemo(() => ({ estado, executar, registar, concluir }), [estado, executar, registar, concluir]);
 }
 
+/**
+ * Estado aberto/fechado de uma secção com campos. Antes de fechar, guarda os campos pendentes
+ * (deixam de estar no ecrã); se houver um valor inválido, a secção fica aberta.
+ */
+export function useColapsavel(inicialAberto: boolean) {
+  const gestor = useGestor();
+  const [aberto, setAberto] = useState(inicialAberto);
+
+  async function alternar() {
+    if (aberto) {
+      Keyboard.dismiss();
+      if (gestor && !(await gestor.concluir())) return;
+    }
+    setAberto(!aberto);
+  }
+
+  return { aberto, alternar };
+}
+
 const TEXTO: Record<Exclude<EstadoGravacao, null>, string> = {
   'a-guardar': 'A guardar…',
   guardado: 'Guardado ✓',

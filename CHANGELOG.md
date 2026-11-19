@@ -45,6 +45,23 @@ Fase 2 da especificação.
   as passadas, e no fim as que não têm data.
 - Não é possível apagar nem mudar a unidade de um item usado numa receita (a app diz em quais).
 - Backups feitos na versão 0.1.0 continuam a poder ser importados.
+- **Novo ícone** da app (bolo com moeda), também no ecrã de arranque e no cabeçalho. Inclui ícone
+  monocromático para os temas do Android.
+- **Visual mais colorido**: tons de azul claro, com dourado e chocolate do ícone; cabeçalhos em
+  azul claro e o separador ativo com ícone cheio.
+- As listas de orçamentos, receitas e catálogo passam a mostrar cartões com ícone colorido e o
+  preço em destaque. Nos orçamentos, a cor e o ícone mostram o estado, que aparece também numa
+  etiqueta. Os chips do filtro por estado ficam com a cor do estado quando escolhidos.
+- **Mudar o estado** de um orçamento: no editor, a fila de chips dá lugar a uma etiqueta com o
+  estado atual (tocar abre a lista de estados) e, à direita, botões com o passo seguinte:
+  "Aceitou" / "Recusou" num orçamento enviado, "Entregue" num aceite. Na lista de
+  orçamentos, um toque longo num orçamento muda o estado sem o abrir.
+- No editor de orçamento, **cada bolo pode ser fechado** (mostra só o nome, o número de linhas e
+  o preço final, com aviso se estiver abaixo do custo) e os **dados do cliente também** (mostram
+  nome, entrega e contacto). Ao fechar, o que estava a ser escrito é guardado. Com vários bolos,
+  os que já têm linhas começam fechados; os dados do cliente começam fechados quando já há nome.
+- O **total** do orçamento fica numa barra fixa no fundo do editor, sempre visível (com o número
+  de bolos, o custo e os ajustes). Esconde-se enquanto o teclado está aberto.
 
 ### Removido
 
