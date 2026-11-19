@@ -1,13 +1,23 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, HelperText, SegmentedButtons, Switch, Text, TextInput } from 'react-native-paper';
 
-import { apagarItem, atualizarItem, criarItem, itemEmUso, obterItem, type TipoItem } from '@/db/repo';
+import {
+  apagarItem,
+  atualizarItem,
+  criarItem,
+  itemEmUso,
+  obterItem,
+  receitasComItem,
+  type TipoItem,
+} from '@/db/repo';
 import { centParaTexto, lerEurosParaCent } from '@/domain/format';
 import type { UnidadeItem } from '@/domain/units';
 import { confirmar, mostrarErro } from '@/ui/confirmar';
+import { avisar } from '@/ui/Guardar';
+import { MenuMais } from '@/ui/MenuMais';
 import { espaco, tema } from '@/ui/theme';
 
 const NOME_UNIDADE: Record<UnidadeItem, string> = { kg: 'kg', l: 'litro', un: 'unidade' };
@@ -49,6 +59,7 @@ export default function EditarItem() {
     try {
       if (novo) await criarItem(db, dados);
       else await atualizarItem(db, Number(id), dados);
+      avisar(novo ? 'Item adicionado ao catálogo' : 'Item guardado');
       router.back();
     } catch (e) {
       mostrarErro(e);
@@ -57,12 +68,21 @@ export default function EditarItem() {
 
   async function apagar() {
     try {
+      const receitas = await receitasComItem(db, Number(id));
+      if (receitas.length > 0) {
+        Alert.alert(
+          'Não é possível apagar',
+          `"${nome}" é usado nas receitas: ${receitas.join(', ')}.\n\nRetire-o dessas receitas primeiro, ou desative-o para deixar de aparecer.`,
+        );
+        return;
+      }
       const emUso = await itemEmUso(db, Number(id));
       const mensagem = emUso
         ? 'Este item é usado em orçamentos. Os orçamentos mantêm o nome e o preço, mas o item sai do catálogo. Em alternativa, pode desativá-lo.'
         : 'O item sai do catálogo.';
       if (!(await confirmar(`Apagar "${nome}"?`, mensagem))) return;
       await apagarItem(db, Number(id));
+      avisar('Item apagado');
       router.back();
     } catch (e) {
       mostrarErro(e);
@@ -71,7 +91,18 @@ export default function EditarItem() {
 
   return (
     <ScrollView contentContainerStyle={styles.conteudo} keyboardShouldPersistTaps="handled">
-      <Stack.Screen options={{ title: novo ? 'Novo item' : 'Editar item' }} />
+      <Stack.Screen
+        options={{
+          title: novo ? 'Novo item' : 'Editar item',
+          headerRight: novo
+            ? undefined
+            : () => (
+                <MenuMais
+                  opcoes={[{ titulo: 'Apagar item', icone: 'delete-outline', aoEscolher: apagar, destrutiva: true }]}
+                />
+              ),
+        }}
+      />
 
       <SegmentedButtons
         value={tipo}
@@ -142,18 +173,13 @@ export default function EditarItem() {
 
       {!novo ? (
         <Text variant="bodySmall" style={styles.secundario}>
-          Mudar o preço não altera os orçamentos já feitos.
+          Mudar o preço não altera os orçamentos já feitos. As receitas usam sempre o preço atual.
         </Text>
       ) : null}
 
-      <Button mode="contained" onPress={guardar} style={styles.botao}>
+      <Button mode="contained" icon="check" onPress={guardar} style={styles.botao}>
         Guardar
       </Button>
-      {!novo ? (
-        <Button mode="text" textColor={tema.colors.error} onPress={apagar}>
-          Apagar item
-        </Button>
-      ) : null}
     </ScrollView>
   );
 }

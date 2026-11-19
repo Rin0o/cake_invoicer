@@ -22,7 +22,14 @@ module.exports = {
       },
     ],
   },
-  collectCoverageFrom: ['src/domain/**/*.ts', 'src/db/**/*.ts', 'src/share/**/*.ts', '!src/**/*.test.ts', '!src/db/testDb.ts'],
+  collectCoverageFrom: [
+    'src/domain/**/*.ts',
+    'src/db/**/*.ts',
+    'src/share/**/*.ts',
+    'src/pdf/template.ts',
+    '!src/**/*.test.ts',
+    '!src/db/testDb.ts',
+  ],
   coverageThreshold: {
     // O cálculo de preços é a parte crítica da app: exige cobertura quase total.
     './src/domain/': { statements: 95, branches: 90, functions: 100, lines: 95 },

@@ -77,6 +77,34 @@ export const MIGRATIONS: string[] = [
   );
   CREATE INDEX idx_linhas_bolo ON orcamento_linhas (bolo_id);
   `,
+
+  // v2 — receitas; sai o contacto do negócio e o logótipo das definições (o logótipo vem com a app)
+  `
+  CREATE TABLE receitas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL DEFAULT '',
+    notas TEXT NOT NULL DEFAULT '',
+    atualizado_em TEXT NOT NULL
+  );
+
+  CREATE TABLE receita_linhas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    receita_id INTEGER NOT NULL REFERENCES receitas (id) ON DELETE CASCADE,
+    item_id INTEGER REFERENCES items (id) ON DELETE RESTRICT,
+    livre INTEGER NOT NULL DEFAULT 0,
+    descricao TEXT NOT NULL DEFAULT '',
+    unidade_entrada TEXT NOT NULL,
+    quantidade REAL NOT NULL,
+    valor_cent INTEGER,
+    ordem INTEGER NOT NULL,
+    CHECK ((livre = 1 AND item_id IS NULL AND valor_cent IS NOT NULL) OR (livre = 0 AND item_id IS NOT NULL))
+  );
+  CREATE INDEX idx_receita_linhas_receita ON receita_linhas (receita_id);
+  CREATE INDEX idx_receita_linhas_item ON receita_linhas (item_id);
+
+  ALTER TABLE definicoes DROP COLUMN contacto;
+  ALTER TABLE definicoes DROP COLUMN logotipo;
+  `,
 ];
 
 export const VERSAO_SCHEMA = MIGRATIONS.length;

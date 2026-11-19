@@ -1,16 +1,17 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
-import { Divider, FAB, List, Searchbar, Text } from 'react-native-paper';
+import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
+import { Chip, Divider, FAB, List, Searchbar, Text } from 'react-native-paper';
 
 import { criarOrcamento, listarOrcamentos, type ResumoOrcamento } from '@/db/repo';
+import { ESTADOS, NOME_ESTADO, type EstadoOrcamento } from '@/domain/estados';
 import { formatarData, formatarEuroInteiro } from '@/domain/format';
 import { mostrarErro } from '@/ui/confirmar';
 import { espaco, tema } from '@/ui/theme';
 
 function descricao(o: ResumoOrcamento) {
-  const partes: string[] = [];
+  const partes: string[] = [NOME_ESTADO[o.estado]];
   if (o.data_entrega) partes.push(`Entrega ${formatarData(o.data_entrega)}`);
   partes.push(o.n_bolos === 1 ? '1 bolo' : `${o.n_bolos} bolos`);
   return partes.join(' · ');
@@ -19,12 +20,13 @@ function descricao(o: ResumoOrcamento) {
 export default function Orcamentos() {
   const db = useSQLiteContext();
   const [pesquisa, setPesquisa] = useState('');
+  const [estado, setEstado] = useState<EstadoOrcamento | null>(null);
   const [lista, setLista] = useState<ResumoOrcamento[]>([]);
 
   useFocusEffect(
     useCallback(() => {
-      listarOrcamentos(db, pesquisa).then(setLista).catch(mostrarErro);
-    }, [db, pesquisa]),
+      listarOrcamentos(db, { pesquisa, estado }).then(setLista).catch(mostrarErro);
+    }, [db, pesquisa, estado]),
   );
 
   async function novo() {
@@ -36,6 +38,8 @@ export default function Orcamentos() {
     }
   }
 
+  const filtrado = !!pesquisa || estado !== null;
+
   return (
     <View style={styles.ecra}>
       <Searchbar
@@ -44,6 +48,18 @@ export default function Orcamentos() {
         onChangeText={setPesquisa}
         style={styles.pesquisa}
       />
+      <View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtros}>
+          <Chip selected={estado === null} showSelectedOverlay onPress={() => setEstado(null)}>
+            Todos
+          </Chip>
+          {ESTADOS.map((e) => (
+            <Chip key={e} selected={estado === e} showSelectedOverlay onPress={() => setEstado(estado === e ? null : e)}>
+              {NOME_ESTADO[e]}
+            </Chip>
+          ))}
+        </ScrollView>
+      </View>
       <FlatList
         data={lista}
         keyExtractor={(o) => String(o.id)}
@@ -51,7 +67,7 @@ export default function Orcamentos() {
         contentContainerStyle={styles.lista}
         ListEmptyComponent={
           <Text style={styles.vazio} variant="bodyLarge">
-            {pesquisa ? 'Nenhum orçamento encontrado.' : 'Ainda não há orçamentos.\nToque em + para criar o primeiro.'}
+            {filtrado ? 'Nenhum orçamento encontrado.' : 'Ainda não há orçamentos.\nToque em + para criar o primeiro.'}
           </Text>
         }
         renderItem={({ item: o }) => (
@@ -76,6 +92,7 @@ export default function Orcamentos() {
 const styles = StyleSheet.create({
   ecra: { flex: 1 },
   pesquisa: { margin: espaco.m, marginBottom: espaco.s },
+  filtros: { gap: espaco.s, paddingHorizontal: espaco.m, paddingBottom: espaco.s },
   lista: { paddingBottom: 96 },
   vazio: { textAlign: 'center', marginTop: espaco.l * 2, color: tema.colors.onSurfaceVariant },
   semCliente: { fontStyle: 'italic', color: tema.colors.onSurfaceVariant },

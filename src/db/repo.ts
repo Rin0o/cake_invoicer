@@ -4,11 +4,14 @@
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import type { EstadoOrcamento } from '@/domain/estados';
+import { hojeIso } from '@/domain/format';
 import { calcularOrcamento, type ParametrosOrcamento } from '@/domain/pricing';
+import { escalarLinhas } from '@/domain/receitas';
 import type { UnidadeEntrada, UnidadeItem } from '@/domain/units';
 
+export type { EstadoOrcamento };
 export type TipoItem = 'ingrediente' | 'material';
-export type EstadoOrcamento = 'rascunho' | 'enviado' | 'aceite' | 'recusado' | 'entregue';
 
 export interface Item {
   id: number;
@@ -26,8 +29,6 @@ export interface Definicoes {
   margem_pct: number;
   moeda: string;
   nome_negocio: string;
-  contacto: string;
-  logotipo: string | null;
 }
 
 export interface Orcamento {
@@ -114,8 +115,21 @@ export async function criarItem(db: SQLiteDatabase, item: NovoItem) {
   return r.lastInsertRowId;
 }
 
-/** Atualiza o item. Orçamentos existentes não mudam: as linhas têm cópia do preço. */
+/**
+ * Atualiza o item. Orçamentos existentes não mudam: as linhas têm cópia do preço.
+ * Não deixa mudar a unidade de um item usado em receitas (as quantidades ficariam erradas).
+ */
 export async function atualizarItem(db: SQLiteDatabase, id: number, item: NovoItem) {
+  const atual = await obterItem(db, id);
+  if (atual && atual.unidade !== item.unidade) {
+    const receitas = await receitasComItem(db, id);
+    if (receitas.length > 0) {
+      throw new Error(
+        `Não é possível mudar a unidade: o item é usado nas receitas ${listarNomes(receitas)}. ` +
+          'Retire-o dessas receitas primeiro, ou crie um item novo.',
+      );
+    }
+  }
   await db.runAsync(
     `UPDATE items SET tipo = ?, nome = ?, unidade = ?, preco_unidade_cent = ?, ativo = ?,
      atualizado_em = ? WHERE id = ?`,
@@ -130,7 +144,29 @@ export async function itemEmUso(db: SQLiteDatabase, id: number) {
   return (r?.n ?? 0) > 0;
 }
 
+/** Nomes das receitas que usam o item. */
+export async function receitasComItem(db: SQLiteDatabase, itemId: number): Promise<string[]> {
+  const r = await db.getAllAsync<{ nome: string }>(
+    `SELECT DISTINCT r.nome FROM receitas r JOIN receita_linhas l ON l.receita_id = r.id
+     WHERE l.item_id = ? ORDER BY r.nome COLLATE NOCASE`,
+    itemId,
+  );
+  return r.map((x) => x.nome || 'Sem nome');
+}
+
+function listarNomes(nomes: string[]) {
+  return nomes.map((n) => `"${n}"`).join(', ');
+}
+
+/** Apaga o item. Recusa se for usado em receitas; em orçamentos, as linhas mantêm a cópia. */
 export async function apagarItem(db: SQLiteDatabase, id: number) {
+  const receitas = await receitasComItem(db, id);
+  if (receitas.length > 0) {
+    throw new Error(
+      `Este item é usado nas receitas ${listarNomes(receitas)}. Retire-o dessas receitas ` +
+        'antes de o apagar, ou desative-o.',
+    );
+  }
   await db.runAsync('DELETE FROM items WHERE id = ?', id);
 }
 
@@ -144,24 +180,48 @@ export async function obterDefinicoes(db: SQLiteDatabase): Promise<Definicoes> {
 
 export async function guardarDefinicoes(
   db: SQLiteDatabase,
-  d: Pick<Definicoes, 'valor_hora_cent' | 'custo_indireto_pct' | 'margem_pct' | 'nome_negocio' | 'contacto'>,
+  d: Pick<Definicoes, 'valor_hora_cent' | 'custo_indireto_pct' | 'margem_pct' | 'nome_negocio'>,
 ) {
   await db.runAsync(
     `UPDATE definicoes SET valor_hora_cent = ?, custo_indireto_pct = ?, margem_pct = ?,
-     nome_negocio = ?, contacto = ? WHERE id = 1`,
-    d.valor_hora_cent, d.custo_indireto_pct, d.margem_pct, d.nome_negocio, d.contacto,
+     nome_negocio = ? WHERE id = 1`,
+    d.valor_hora_cent, d.custo_indireto_pct, d.margem_pct, d.nome_negocio,
   );
 }
 
 // ---------- Orçamentos ----------
 
-export function listarOrcamentos(db: SQLiteDatabase, pesquisa = '') {
+function padraoLike(texto: string) {
+  return `%${texto.replace(/[\\%_]/g, (c) => '\\' + c)}%`;
+}
+
+/**
+ * Histórico de orçamentos, com pesquisa por cliente e filtro por estado.
+ * Ordem: entregas de hoje em diante (a mais próxima primeiro), depois as passadas
+ * (a mais recente primeiro), e no fim os orçamentos sem data de entrega.
+ */
+export function listarOrcamentos(
+  db: SQLiteDatabase,
+  opcoes: { pesquisa?: string; estado?: EstadoOrcamento | null; hoje?: string } = {},
+) {
+  const hoje = opcoes.hoje ?? hojeIso();
+  const args: (string | number)[] = [padraoLike(opcoes.pesquisa ?? '')];
+  let filtroEstado = '';
+  if (opcoes.estado) {
+    filtroEstado = 'AND o.estado = ?';
+    args.push(opcoes.estado);
+  }
+  args.push(hoje, hoje, hoje);
   return db.getAllAsync<ResumoOrcamento>(
     `SELECT o.*, (SELECT COUNT(*) FROM orcamento_bolos b WHERE b.orcamento_id = o.id) AS n_bolos
      FROM orcamentos o
-     WHERE o.cliente LIKE ? ESCAPE '\\'
-     ORDER BY o.criado_em DESC`,
-    `%${pesquisa.replace(/[\\%_]/g, (c) => '\\' + c)}%`,
+     WHERE o.cliente LIKE ? ESCAPE '\\' ${filtroEstado}
+     ORDER BY
+       CASE WHEN o.data_entrega IS NULL THEN 2 WHEN o.data_entrega >= ? THEN 0 ELSE 1 END,
+       CASE WHEN o.data_entrega >= ? THEN o.data_entrega END ASC,
+       CASE WHEN o.data_entrega < ? THEN o.data_entrega END DESC,
+       o.criado_em DESC, o.id DESC`,
+    args,
   );
 }
 
@@ -390,4 +450,206 @@ export async function apagarLinha(db: SQLiteDatabase, linhaId: number) {
     const oid = await orcamentoDoBolo(db, l.bolo_id);
     if (oid) await recalcularTotais(db, oid);
   }
+}
+
+// ---------- Receitas ----------
+//
+// Uma receita guarda só quantidades; os preços vêm sempre do catálogo atual. Ao aplicar
+// uma receita a um bolo, as linhas são copiadas com os preços desse momento (snapshot),
+// e a partir daí o bolo não depende da receita.
+
+export interface Receita {
+  id: number;
+  nome: string;
+  notas: string;
+  atualizado_em: string;
+}
+
+export interface LinhaReceita {
+  id: number;
+  receita_id: number;
+  item_id: number | null;
+  livre: number;
+  /** Só em linhas livres; nas de item usa-se o nome atual do item. */
+  descricao: string;
+  unidade_entrada: UnidadeEntrada;
+  /** Na unidade do item; 1 em linhas livres. */
+  quantidade: number;
+  /** Só em linhas livres. */
+  valor_cent: number | null;
+  ordem: number;
+}
+
+/** Linha da receita com os dados atuais do item. */
+export interface LinhaReceitaDetalhe extends LinhaReceita {
+  nome: string;
+  tipo: TipoItem | null;
+  unidade: UnidadeItem;
+  preco_unit_cent: number;
+  ativo: number;
+}
+
+export interface ReceitaCompleta extends Receita {
+  linhas: LinhaReceitaDetalhe[];
+}
+
+export interface ResumoReceita extends Receita {
+  n_linhas: number;
+}
+
+export function listarReceitas(db: SQLiteDatabase, pesquisa = '') {
+  return db.getAllAsync<ResumoReceita>(
+    `SELECT r.*, (SELECT COUNT(*) FROM receita_linhas l WHERE l.receita_id = r.id) AS n_linhas
+     FROM receitas r WHERE r.nome LIKE ? ESCAPE '\\' ORDER BY r.nome COLLATE NOCASE, r.id`,
+    padraoLike(pesquisa),
+  );
+}
+
+const SELECT_LINHA_RECEITA = `
+  SELECT l.*,
+    CASE WHEN l.livre = 1 THEN l.descricao ELSE i.nome END AS nome,
+    i.tipo AS tipo,
+    COALESCE(i.unidade, 'un') AS unidade,
+    CASE WHEN l.livre = 1 THEN l.valor_cent ELSE i.preco_unidade_cent END AS preco_unit_cent,
+    COALESCE(i.ativo, 1) AS ativo
+  FROM receita_linhas l LEFT JOIN items i ON i.id = l.item_id`;
+
+export async function obterReceita(db: SQLiteDatabase, id: number): Promise<ReceitaCompleta | null> {
+  const r = await db.getFirstAsync<Receita>('SELECT * FROM receitas WHERE id = ?', id);
+  if (!r) return null;
+  const linhas = await db.getAllAsync<LinhaReceitaDetalhe>(
+    `${SELECT_LINHA_RECEITA} WHERE l.receita_id = ? ORDER BY l.ordem, l.id`, id,
+  );
+  return { ...r, linhas };
+}
+
+export function obterLinhaReceita(db: SQLiteDatabase, id: number) {
+  return db.getFirstAsync<LinhaReceitaDetalhe>(`${SELECT_LINHA_RECEITA} WHERE l.id = ?`, id);
+}
+
+/** Linhas no formato do cálculo (para o custo estimado e a escala). */
+export function entradaDeLinhaReceita(l: LinhaReceitaDetalhe) {
+  return { livre: !!l.livre, tipo: l.tipo, quantidade: l.quantidade, precoUnitCent: l.preco_unit_cent };
+}
+
+export async function criarReceita(db: SQLiteDatabase, nome = '') {
+  const r = await db.runAsync('INSERT INTO receitas (nome, atualizado_em) VALUES (?, ?)', nome, agora());
+  return r.lastInsertRowId;
+}
+
+export async function atualizarReceita(
+  db: SQLiteDatabase,
+  id: number,
+  campos: Partial<Pick<Receita, 'nome' | 'notas'>>,
+) {
+  const chaves = Object.keys(campos) as (keyof typeof campos)[];
+  if (chaves.length === 0) return;
+  await db.runAsync(
+    `UPDATE receitas SET ${chaves.map((k) => `${k} = ?`).join(', ')}, atualizado_em = ? WHERE id = ?`,
+    ...chaves.map((k) => campos[k] ?? ''), agora(), id,
+  );
+}
+
+/** Apaga a receita. Os bolos onde já foi aplicada não mudam. */
+export async function apagarReceita(db: SQLiteDatabase, id: number) {
+  await db.runAsync('DELETE FROM receitas WHERE id = ?', id);
+}
+
+async function inserirLinhaReceita(
+  db: SQLiteDatabase,
+  receitaId: number,
+  l: Pick<LinhaReceita, 'item_id' | 'livre' | 'descricao' | 'unidade_entrada' | 'quantidade' | 'valor_cent'>,
+) {
+  const r = await db.getFirstAsync<{ m: number | null }>(
+    'SELECT MAX(ordem) AS m FROM receita_linhas WHERE receita_id = ?', receitaId,
+  );
+  await db.runAsync(
+    `INSERT INTO receita_linhas
+     (receita_id, item_id, livre, descricao, unidade_entrada, quantidade, valor_cent, ordem)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    receitaId, l.item_id, l.livre, l.descricao, l.unidade_entrada, l.quantidade, l.valor_cent,
+    (r?.m ?? -1) + 1,
+  );
+  await db.runAsync('UPDATE receitas SET atualizado_em = ? WHERE id = ?', agora(), receitaId);
+}
+
+export async function adicionarLinhaReceitaItem(
+  db: SQLiteDatabase,
+  receitaId: number,
+  itemId: number,
+  quantidade: number,
+  unidadeEntrada: UnidadeEntrada,
+) {
+  await inserirLinhaReceita(db, receitaId, {
+    item_id: itemId, livre: 0, descricao: '', unidade_entrada: unidadeEntrada, quantidade, valor_cent: null,
+  });
+}
+
+export async function adicionarLinhaReceitaLivre(
+  db: SQLiteDatabase,
+  receitaId: number,
+  descricao: string,
+  valorCent: number,
+) {
+  await inserirLinhaReceita(db, receitaId, {
+    item_id: null, livre: 1, descricao, unidade_entrada: 'un', quantidade: 1, valor_cent: valorCent,
+  });
+}
+
+export async function atualizarLinhaReceita(
+  db: SQLiteDatabase,
+  linhaId: number,
+  campos: Partial<Pick<LinhaReceita, 'quantidade' | 'unidade_entrada' | 'descricao' | 'valor_cent'>>,
+) {
+  const chaves = Object.keys(campos) as (keyof typeof campos)[];
+  if (chaves.length === 0) return;
+  await db.runAsync(
+    `UPDATE receita_linhas SET ${chaves.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`,
+    ...chaves.map((k) => campos[k] ?? null), linhaId,
+  );
+}
+
+export async function apagarLinhaReceita(db: SQLiteDatabase, linhaId: number) {
+  await db.runAsync('DELETE FROM receita_linhas WHERE id = ?', linhaId);
+}
+
+/**
+ * Copia as linhas da receita para o bolo, com os preços atuais do catálogo e a escala
+ * aplicada aos ingredientes. Junta às linhas que o bolo já tem. Se o bolo estiver vazio
+ * e ainda tiver o nome por omissão ("Bolo 2"), passa a ter o nome da receita.
+ */
+export async function aplicarReceita(db: SQLiteDatabase, boloId: number, receitaId: number, escala: number) {
+  const receita = await obterReceita(db, receitaId);
+  if (!receita) throw new Error('A receita já não existe.');
+  if (receita.linhas.length === 0) throw new Error('A receita não tem linhas.');
+  const bolo = await db.getFirstAsync<Bolo & { n_linhas: number; max_ordem: number | null }>(
+    `SELECT b.*, (SELECT COUNT(*) FROM orcamento_linhas l WHERE l.bolo_id = b.id) AS n_linhas,
+       (SELECT MAX(ordem) FROM orcamento_linhas l WHERE l.bolo_id = b.id) AS max_ordem
+     FROM orcamento_bolos b WHERE b.id = ?`,
+    boloId,
+  );
+  if (!bolo) throw new Error('O bolo já não existe.');
+
+  const escaladas = escalarLinhas(
+    receita.linhas.map((l) => ({ ...entradaDeLinhaReceita(l), linha: l })),
+    escala,
+  );
+
+  await db.withTransactionAsync(async () => {
+    let ordem = (bolo.max_ordem ?? -1) + 1;
+    for (const e of escaladas) {
+      const l = e.linha;
+      await db.runAsync(
+        `INSERT INTO orcamento_linhas
+         (bolo_id, item_id, livre, descricao, unidade, unidade_entrada, quantidade, preco_unit_cent, ordem)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        boloId, l.item_id, l.livre, l.nome, l.unidade, l.unidade_entrada, e.quantidade, l.preco_unit_cent,
+        ordem++,
+      );
+    }
+    if (bolo.n_linhas === 0 && /^Bolo \d+$/.test(bolo.nome) && receita.nome.trim()) {
+      await db.runAsync('UPDATE orcamento_bolos SET nome = ? WHERE id = ?', receita.nome.trim(), boloId);
+    }
+  });
+  await recalcularTotais(db, bolo.orcamento_id);
 }

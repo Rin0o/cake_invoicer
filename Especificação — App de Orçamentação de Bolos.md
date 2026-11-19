@@ -9,7 +9,7 @@ App Android nativa, sem backend, para calcular orçamentos de bolos a partir de 
 - **Utilizador:** uma pessoa que faz bolos por encomenda, a trabalhar num único telemóvel. Não é quem desenvolve a app, por isso a interface tem de ser autoexplicativa e as atualizações fáceis de instalar.
 - **Plataforma:** Android, distribuída como APK (sem Play Store na fase inicial).
 - **Dados:** 100% locais (SQLite no dispositivo), com backup/restauro manual em JSON.
-- **Fora de âmbito:** sincronização entre dispositivos, multiutilizador, iOS, faturação certificada, IVA (preços sem IVA; o PDF indica "Orçamento — não serve de fatura"), validade e sinal do orçamento, receitas pré-definidas, escala automática por tamanho, duplicação de orçamentos, histórico de preços.
+- **Fora de âmbito:** sincronização entre dispositivos, multiutilizador, iOS, faturação certificada, IVA (preços sem IVA; o PDF indica "Orçamento — não serve de fatura"), validade e sinal do orçamento, escala automática por tamanho (a escala das receitas indica-se à mão), receitas dentro de receitas, número de orçamento (a pensar mais tarde), contactos do negócio no PDF, duplicação de orçamentos, histórico de preços.
 
 ## 2. Requisitos funcionais
 
@@ -24,10 +24,13 @@ App Android nativa, sem backend, para calcular orçamentos de bolos a partir de 
 | RF07 | Linha livre | Linha com descrição e valor, para custos que não estão no catálogo |
 | RF08 | Cálculo automático | Valor de cada linha, custo por bolo, total do orçamento |
 | RF09 | Ajuste dos valores finais | Preço final de cada bolo editável e guardado; mostra a diferença face ao calculado, avisa se ficar abaixo do custo e permite repor o valor calculado |
-| RF10 | Exportar | PDF do orçamento para o cliente, com logótipo e contactos do negócio |
-| RF11 | Partilhar | Folha de partilha nativa (WhatsApp, email, Drive) com o PDF ou um resumo em texto |
-| RF12 | Histórico | Lista de orçamentos com estado e pesquisa por cliente |
-| RF13 | Backup | Exportar e importar toda a base em JSON |
+| RF10 | Exportar | PDF do orçamento para o cliente: logótipo (incluído na app), data, data de entrega, cada bolo com o preço final, total e "Orçamento — não serve de fatura". Sem nome do negócio (já está no logótipo), sem nome do cliente, sem contactos, sem número de orçamento, sem notas internas nem detalhe de ingredientes |
+| RF11 | Partilhar | Folha de partilha nativa (WhatsApp, email, Drive) com o PDF ou um resumo em texto. O resumo em texto tem título (com o nome do negócio), entrega, bolos e total, sem o nome do cliente e sem a nota "não serve de fatura" (que fica só no PDF) |
+| RF12 | Histórico | Lista de orçamentos com estado, filtro por estado e pesquisa por cliente. Ordem: entregas de hoje em diante (a mais próxima primeiro), depois as passadas (a mais recente primeiro), e no fim os orçamentos sem data |
+| RF13 | Backup | Exportar e importar toda a base em JSON. Backups de versões anteriores da app continuam a importar |
+| RF14 | Estados | Rascunho, enviado, aceite, recusado, entregue; mudam-se à mão. Partilhar um rascunho (PDF ou texto) passa-o a enviado. O orçamento é editável em qualquer estado |
+| RF15 | Receitas | Nome, notas e linhas de ingredientes/materiais do catálogo (com quantidade) e linhas livres. Sem tempo de trabalho. Mostra o custo estimado com os preços atuais do catálogo |
+| RF16 | Receita no orçamento | Adicionar uma receita a um bolo, com escala (decimal, ex.: 1,5). As linhas são copiadas com os preços atuais e juntam-se às que o bolo já tem, para montar um bolo a partir de várias receitas (massa + recheio + cobertura) |
 
 ## 3. Stack técnica
 
@@ -37,11 +40,11 @@ React Native com Expo e TypeScript, persistência em SQLite local e build do APK
 | --- | --- | --- |
 | Framework | Expo (SDK atual) + TypeScript | Configuração mínima, acesso nativo, modelo mental React |
 | Navegação | Expo Router | Rotas por ficheiro, simples para ecrãs CRUD |
-| Persistência | expo-sqlite com SQL direto | Cinco tabelas: queries tipadas à mão em `db/repo.ts` e migrations versionadas por `PRAGMA user_version`, sem ORM |
+| Persistência | expo-sqlite com SQL direto | Sete tabelas: queries tipadas à mão em `db/repo.ts` e migrations versionadas por `PRAGMA user_version`, sem ORM |
 | UI | React Native Paper | Componentes Material prontos para formulários e listas |
 | Formulários | Estado local + validação em `domain/format.ts` | Formulários pequenos; o editor do orçamento guarda ao sair de cada campo |
 | Estado | Sem biblioteca | O estado principal vive no SQLite e é recarregado ao voltar a cada ecrã |
-| PDF | expo-print | PDF gerado a partir de template HTML (logótipo embebido em base64) |
+| PDF | expo-print + expo-asset | PDF A4 gerado a partir de template HTML; o logótipo vem com a app e é embebido em base64 |
 | Partilha | expo-sharing (ficheiro) + Share.share (texto) | Folha de partilha nativa do Android |
 | Backup | expo-file-system + expo-document-picker | Exportar/importar JSON para fora da pasta da app |
 | Testes | Jest + `node:sqlite` | Testes ao cálculo e às queries/migrations/backup, sem telemóvel |
@@ -49,12 +52,14 @@ React Native com Expo e TypeScript, persistência em SQLite local e build do APK
 
 ## 4. Modelo de dados
 
-Cinco tabelas SQLite. Valores monetários guardados em **cêntimos (inteiros)**; quantidades em decimal. Os orçamentos guardam uma cópia (snapshot) dos preços e das percentagens em vigor, para não dependerem do catálogo nem das definições atuais.
+Sete tabelas SQLite. Valores monetários guardados em **cêntimos (inteiros)**; quantidades em decimal. Os orçamentos guardam uma cópia (snapshot) dos preços e das percentagens em vigor, para não dependerem do catálogo nem das definições atuais.
 
 | Tabela | Campos principais | Notas |
 | --- | --- | --- |
 | items | id, tipo (ingrediente/material), nome, unidade (kg/l/un), preco\_unidade\_cent, ativo, atualizado\_em | Preço por kg, por litro ou por unidade. `ativo = false` esconde o item sem apagar |
-| definicoes | valor\_hora\_cent, custo\_indireto\_pct, margem\_pct, moeda, nome\_negocio, contacto, logotipo | Linha única. `margem_pct` é o valor por omissão para novos orçamentos |
+| definicoes | valor\_hora\_cent, custo\_indireto\_pct, margem\_pct, moeda, nome\_negocio | Linha única. `margem_pct` é o valor por omissão para novos orçamentos |
+| receitas | id, nome, notas, atualizado\_em | Só quantidades; os preços vêm sempre do catálogo atual |
+| receita\_linhas | id, receita\_id, item\_id (nulo em linha livre), livre, descricao, unidade\_entrada, quantidade, valor\_cent, ordem | Quantidade na unidade do item. Um item usado numa receita não pode ser apagado nem mudar de unidade |
 | orcamentos | id, cliente, contacto, data\_entrega, estado, notas, valor\_hora\_snap, indireto\_pct\_snap, margem\_pct, total\_calc\_cent, total\_cent, criado\_em, atualizado\_em | `estado`: rascunho / enviado / aceite / recusado / entregue. `margem_pct` copiada das definições e editável. `total_cent` = soma dos preços finais dos bolos |
 | orcamento\_bolos | id, orcamento\_id, nome, ordem, tempo\_min, custo\_cent, preco\_calc\_cent, preco\_final\_cent | Um orçamento tem 1..n bolos. Um bolo de andares é um só bolo. `preco_final` nulo = usa o calculado |
 | orcamento\_linhas | id, bolo\_id, item\_id (nulo em linha livre), descricao\_snap, unidade\_snap, quantidade, preco\_unit\_snap\_cent, valor\_cent | Nome, unidade e preço copiados do item no momento em que a linha é adicionada |
@@ -82,6 +87,11 @@ Toda a lógica vive num módulo puro (`domain/pricing.ts`), sem dependências de
    - Cada bolo ajustado tem uma ação **"Repor calculado"**, que limpa o valor editado e volta ao calculado.
    - Se o bolo for alterado depois do ajuste (linhas, quantidades, tempo, margem), o preço editado mantém-se. A app indica que o calculado mudou e mostra o novo valor, para quem usa a app decidir se o repõe.
 9. **Precisão:** cálculos intermédios sem arredondar (em cêntimos com casas decimais); só o preço de cada bolo é arredondado ao euro.
+10. **Receitas:**
+    - Ao adicionar uma receita a um bolo, cada linha é copiada com o nome, a unidade e o preço atuais do item (snapshot, como uma linha adicionada à mão). Mudar ou apagar a receita depois não altera o bolo.
+    - A **escala** multiplica só as quantidades dos **ingredientes**. Materiais (caixa, base, topper) e linhas livres ficam iguais.
+    - Se o bolo estiver vazio e tiver o nome por omissão ("Bolo 1"), passa a ter o nome da receita.
+    - O custo estimado da receita é a soma das linhas com os preços atuais, sem margem nem tempo.
 
 ```latex
 V_{linha} = q \cdot P_{unidade}
@@ -104,18 +114,25 @@ Ecrãs em `src/app/` (Expo Router), lógica e dados no resto de `src/`.
 ```
 src/
   app/
-    (tabs)/index.tsx      # lista de orçamentos
+    (tabs)/index.tsx      # histórico de orçamentos: pesquisa e filtro por estado
+    (tabs)/receitas.tsx   # lista de receitas
     (tabs)/catalogo.tsx   # ingredientes e materiais
-    (tabs)/definicoes.tsx # valor/hora, percentagens, dados do negócio, backup
+    (tabs)/definicoes.tsx # valor/hora, percentagens, nome do negócio, backup
     item/[id].tsx         # item do catálogo
-    orcamento/[id].tsx    # editor do orçamento: bolos, linhas, tempo, preço final
+    orcamento/[id].tsx    # editor do orçamento: estado, bolos, linhas, tempo, preço final, envio
     orcamento/linha.tsx   # adicionar/editar linha
+    orcamento/receita.tsx # adicionar receita a um bolo, com escala
+    receita/[id].tsx      # editor de receita
+    receita/linha.tsx     # adicionar/editar linha de receita
   db/migrations.ts        # schema versionado
   db/repo.ts              # queries
   domain/pricing.ts       # cálculo puro, testado com Jest
+  domain/receitas.ts      # escala das receitas
+  domain/estados.ts       # estados do orçamento
   domain/units.ts         # conversões g↔kg, ml↔l
   domain/format.ts        # leitura/formatação de euros, decimais, tempo e datas
-  pdf/template.ts         # HTML do orçamento (fase 2)
+  pdf/template.ts         # HTML do orçamento
+  pdf/pdf.ts              # gerar e partilhar o PDF
   share/texto.ts          # resumo em texto
   backup/backup.ts
 ```
@@ -131,7 +148,7 @@ src/
 Três fases incrementais; cada uma termina com um APK instalado e em uso.
 
 1. **MVP:** catálogo de ingredientes e materiais, definições (valor/hora, percentagens), orçamento com vários bolos, linhas e tempo, total calculado e ajustável, partilha em texto, **backup e restauro em JSON**.
-2. **Saída profissional:** PDF com logótipo e contactos, histórico com estados e pesquisa.
+2. **Saída profissional e receitas:** PDF com logótipo, estados e histórico com filtro e pesquisa, receitas com escala.
 3. **Melhorias:** a definir após uso real (ex.: backup automático periódico, estatísticas).
 
 ## 8. Requisitos não funcionais e questões em aberto

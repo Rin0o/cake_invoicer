@@ -8,6 +8,7 @@ import { escolherBackup, exportarBackup, restaurarBackup } from '@/backup/backup
 import { guardarDefinicoes, obterDefinicoes } from '@/db/repo';
 import { centParaTexto, formatarDecimal, lerDecimal, lerEurosParaCent } from '@/domain/format';
 import { confirmar, mostrarErro } from '@/ui/confirmar';
+import { avisar } from '@/ui/Guardar';
 import { espaco, tema } from '@/ui/theme';
 
 export default function Definicoes() {
@@ -16,7 +17,6 @@ export default function Definicoes() {
   const [indireto, setIndireto] = useState('');
   const [margem, setMargem] = useState('');
   const [nomeNegocio, setNomeNegocio] = useState('');
-  const [contacto, setContacto] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [aOcupar, setAOcupar] = useState(false);
 
@@ -27,7 +27,6 @@ export default function Definicoes() {
         setIndireto(formatarDecimal(d.custo_indireto_pct, 2));
         setMargem(formatarDecimal(d.margem_pct, 2));
         setNomeNegocio(d.nome_negocio);
-        setContacto(d.contacto);
         setErro(null);
       })
       .catch(mostrarErro);
@@ -49,9 +48,8 @@ export default function Definicoes() {
         custo_indireto_pct: indiretoPct,
         margem_pct: margemPct,
         nome_negocio: nomeNegocio.trim(),
-        contacto: contacto.trim(),
       });
-      Alert.alert('Guardado', 'As definições aplicam-se aos novos orçamentos.');
+      avisar('Definições guardadas. Aplicam-se aos novos orçamentos.');
     } catch (e) {
       mostrarErro(e);
     }
@@ -76,7 +74,7 @@ export default function Definicoes() {
       const data = new Date(backup.exportado_em).toLocaleString('pt-PT');
       const ok = await confirmar(
         'Restaurar backup?',
-        `Todos os dados atuais (catálogo, orçamentos e definições) vão ser substituídos pelos do backup de ${data}. Isto não se pode desfazer.`,
+        `Todos os dados atuais (catálogo, receitas, orçamentos e definições) vão ser substituídos pelos do backup de ${data}. Isto não se pode desfazer.`,
         'Restaurar',
       );
       if (!ok) return;
@@ -129,16 +127,9 @@ export default function Definicoes() {
       <Text variant="titleMedium" style={styles.titulo}>
         O seu negócio
       </Text>
-      <TextInput mode="outlined" label="Nome" value={nomeNegocio} onChangeText={setNomeNegocio} />
       <View>
-        <TextInput
-          mode="outlined"
-          label="Contacto"
-          value={contacto}
-          onChangeText={setContacto}
-          multiline
-        />
-        <HelperText type="info">Telefone, email ou Instagram. Aparece no orçamento enviado ao cliente.</HelperText>
+        <TextInput mode="outlined" label="Nome" value={nomeNegocio} onChangeText={setNomeNegocio} />
+        <HelperText type="info">Aparece no título do resumo em texto. Pode ficar vazio.</HelperText>
       </View>
 
       {erro ? <HelperText type="error">{erro}</HelperText> : null}

@@ -11,11 +11,9 @@ function calculo(precos: (number | null)[], calc: number[]) {
 }
 
 describe('resumoTexto', () => {
-  it('mostra negócio, cliente, entrega, bolos, total e contacto', () => {
+  it('mostra negócio, entrega, bolos e total (sem o cliente)', () => {
     const texto = resumoTexto({
       nomeNegocio: 'Doces da Ana',
-      contactoNegocio: '912 345 678',
-      cliente: 'Rui',
       dataEntrega: '2027-03-05',
       bolos: [{ nome: 'Bolo de chocolate' }, { nome: 'Cupcakes' }],
       calculo: calculo([null, null], [4500, 2000]),
@@ -24,17 +22,12 @@ describe('resumoTexto', () => {
       [
         '*Orçamento — Doces da Ana*',
         '',
-        'Cliente: Rui',
         'Entrega: 05/03/2027',
         '',
         '• Bolo de chocolate: 45 €',
         '• Cupcakes: 20 €',
         '',
         '*Total: 65 €*',
-        '',
-        '912 345 678',
-        '',
-        '_Orçamento — não serve de fatura._',
       ].join('\n'),
     );
   });
@@ -42,8 +35,6 @@ describe('resumoTexto', () => {
   it('usa os preços finais editados e não revela o calculado', () => {
     const texto = resumoTexto({
       nomeNegocio: '',
-      contactoNegocio: '',
-      cliente: '',
       dataEntrega: null,
       bolos: [{ nome: 'Bolo 1' }],
       calculo: calculo([5000], [4500]),

@@ -22,6 +22,7 @@ export default function TabLayout() {
         sceneStyle: { backgroundColor: tema.colors.background },
       }}>
       <Tabs.Screen name="index" options={{ title: 'Orçamentos', tabBarIcon: icone('file-document-outline') }} />
+      <Tabs.Screen name="receitas" options={{ title: 'Receitas', tabBarIcon: icone('book-open-variant') }} />
       <Tabs.Screen name="catalogo" options={{ title: 'Catálogo', tabBarIcon: icone('basket-outline') }} />
       <Tabs.Screen name="definicoes" options={{ title: 'Definições', tabBarIcon: icone('cog-outline') }} />
     </Tabs>
