@@ -6,10 +6,17 @@ App Android para calcular orçamentos de bolos por encomenda. Funciona sem inter
 no telemóvel.
 
 - Catálogo de ingredientes e materiais com preço por kg, litro ou unidade.
+- Receitas reutilizáveis, aplicadas a um bolo com escala (ex.: 1,5×).
 - Orçamentos com vários bolos: quantidade usada de cada item, tempo de trabalho, custos indiretos e margem.
 - Preço final de cada bolo editável, com opção de repor o valor calculado.
-- Partilha do orçamento por WhatsApp, SMS ou email.
+- Cada orçamento tem um número (`2026-014`) e um título interno do pedido; o cliente pode vir dos
+  contactos do telemóvel e a data de entrega escolhe-se no calendário.
+- Estados (rascunho, enviado, aceite, recusado, entregue) e histórico com pesquisa e filtro.
+- Envio ao cliente em PDF (com logótipo) ou em texto, por WhatsApp, SMS ou email.
 - Backup e restauro em JSON.
+
+Planos futuros (rever o PDF, opções de branding…) na
+[especificação](Especificação%20—%20App%20de%20Orçamentação%20de%20Bolos.md#7-plano-de-rollout).
 
 | Documento | Conteúdo |
 | --- | --- |
@@ -56,7 +63,8 @@ Os testes automáticos cobrem tudo o que não é interface:
   escritos (euros, tempo, datas). Exige cobertura ≥ 95 %.
 - `src/db/`: migrations e queries, contra uma base SQLite real em memória (`node:sqlite`, através
   do adaptador [src/db/testDb.ts](src/db/testDb.ts)).
-- `src/backup/`, `src/share/`: exportar/restaurar e o texto enviado ao cliente.
+- `src/backup/`, `src/share/`, `src/pdf/template.ts`: exportar/restaurar, e o texto e o PDF
+  enviados ao cliente.
 
 Os ecrãs são verificados à mão com [docs/testes-manuais.md](docs/testes-manuais.md).
 
@@ -77,6 +85,7 @@ src/
   domain/       lógica pura e testada (preços, unidades, formatação)
   db/           schema versionado e queries
   backup/       exportar/importar JSON
+  pdf/          PDF para o cliente
   share/        texto para o cliente
   ui/           componentes partilhados e tema
 docs/           documentação de desenvolvimento

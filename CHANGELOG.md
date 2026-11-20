@@ -16,7 +16,12 @@ Cada versão distribuída tem também um `android.versionCode` (em `app.json`) m
 
 ## [Por lançar]
 
-Fase 2 da especificação.
+## [0.2.0] — 2026-11-20
+
+Fase 2 da especificação e primeiras melhorias da fase 3.
+
+**Para atualizar:** instalar o APK novo por cima do anterior (exportar antes um backup). Esta
+versão traz módulos nativos novos (contactos e calendário), por isso não chega uma atualização OTA.
 
 ### Adicionado
 
@@ -34,10 +39,10 @@ Fase 2 da especificação.
 - **Escolher o cliente dos contactos** do telemóvel: no editor de orçamento, "Escolher dos
   contactos" preenche o nome e o telefone (ou email; se houver vários, pergunta qual). Os dados
   são copiados para o orçamento e continuam editáveis. Pede acesso aos contactos só para leitura
-  (a app nunca altera os contactos). Precisa de um novo build da app (não chega uma atualização OTA).
-- **Calendário para a data de entrega**: o ícone de calendário no campo abre o calendário do Android (semana a
-  começar à segunda); "Sem data" apaga a data. Continua a dar para escrever a data à mão.
-  Também precisa do novo build.
+  (a app nunca altera os contactos).
+- **Calendário para a data de entrega**: o ícone de calendário no campo abre o calendário do
+  Android (semana a começar à segunda); "Sem data" apaga a data. Continua a dar para escrever a
+  data à mão.
 - **Número do orçamento** ("2026-014"): sequencial por ano, atribuído ao criar e nunca reutilizado
   (nem depois de apagar). Aparece na lista, no editor, no PDF (e no nome do ficheiro,
   `Orcamento-2026-014-Ana-Silva.pdf`) e no texto partilhado, para o cliente o poder indicar.
@@ -46,7 +51,6 @@ Fase 2 da especificação.
   baixo do nome do cliente, para distinguir pedidos do mesmo cliente. Não vai para o PDF nem
   para o texto.
 - A pesquisa da lista encontra também pelo pedido e pelo número.
-
 - Botão **Concluído** nos editores de orçamento e de receita: guarda o campo em edição, confirma
   que tudo ficou gravado e volta à lista. Por baixo do título aparece "A guardar…" / "Guardado ✓".
 - Mensagem curta de confirmação ao guardar, adicionar ou apagar (orçamento, receita, item, linha,
@@ -59,10 +63,11 @@ Fase 2 da especificação.
 - A lista de orçamentos passa a estar ordenada pela data de entrega: primeiro as próximas, depois
   as passadas, e no fim as que não têm data.
 - Não é possível apagar nem mudar a unidade de um item usado numa receita (a app diz em quais).
-- Backups feitos na versão 0.1.0 continuam a poder ser importados.
-- Dados (schema v3): número e título nos orçamentos, e tabela `numeracao`. Ao atualizar, a app
-  grava antes um backup automático. Backups anteriores continuam a importar (os orçamentos ficam
-  numerados ao importar).
+- Backups feitos na versão 0.1.0 continuam a poder ser importados (os orçamentos ficam numerados
+  ao importar).
+- Cada cartão da lista de orçamentos mostra à esquerda o cliente, o pedido, o estado e a data de
+  entrega, e à direita o número por cima do total.
+- O PDF passa a chamar-se `Orcamento-<número>-<cliente>.pdf` (antes levava a data).
 - **Novo ícone** da app (bolo com moeda), também no ecrã de arranque e no cabeçalho. Inclui ícone
   monocromático para os temas do Android.
 - **Visual mais colorido**: tons de azul claro, com dourado e chocolate do ícone; cabeçalhos em
@@ -95,6 +100,8 @@ Fase 2 da especificação.
 
 - v2: tabelas `receitas` e `receita_linhas`; saem as colunas `definicoes.contacto` e
   `definicoes.logotipo`. A migração corre sozinha ao abrir a app, com backup automático antes.
+- v3: colunas `orcamentos.titulo`, `numero_ano` e `numero_seq` (índice único) e tabela
+  `numeracao`. Os orçamentos existentes são numerados por ordem de criação em cada ano.
 
 ## [0.1.0] — MVP
 
@@ -121,5 +128,6 @@ Primeira versão (fase 1 da especificação).
 
 - v1: `items`, `definicoes`, `orcamentos`, `orcamento_bolos`, `orcamento_linhas`.
 
-[Por lançar]: https://github.com/Rin0o/cake_invoicer/compare/v0.1.0...HEAD
+[Por lançar]: https://github.com/Rin0o/cake_invoicer/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Rin0o/cake_invoicer/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Rin0o/cake_invoicer/releases/tag/v0.1.0

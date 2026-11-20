@@ -130,6 +130,8 @@ src/
   domain/pricing.ts       # cálculo puro, testado com Jest
   domain/receitas.ts      # escala das receitas
   domain/estados.ts       # estados do orçamento
+  domain/numero.ts        # número do orçamento (por ano)
+  domain/contacto.ts      # telefone/email de um contacto do telemóvel
   domain/units.ts         # conversões g↔kg, ml↔l
   domain/format.ts        # leitura/formatação de euros, decimais, tempo e datas
   pdf/template.ts         # HTML do orçamento
@@ -150,7 +152,10 @@ Três fases incrementais; cada uma termina com um APK instalado e em uso.
 
 1. **MVP:** catálogo de ingredientes e materiais, definições (valor/hora, percentagens), orçamento com vários bolos, linhas e tempo, total calculado e ajustável, partilha em texto, **backup e restauro em JSON**.
 2. **Saída profissional e receitas:** PDF com logótipo, estados e histórico com filtro e pesquisa, receitas com escala.
-3. **Melhorias:** a definir após uso real (ex.: backup automático periódico, estatísticas).
+3. **Melhorias:** a definir após uso real. Já feito na 0.2.0: cliente a partir dos contactos, calendário para a data de entrega, número do orçamento e título interno do pedido. Planeado:
+   - **Rever o PDF:** aspeto e conteúdo do orçamento enviado ao cliente (organização, o que mostrar, legibilidade no telemóvel).
+   - **Opções de branding:** escolher na app o logótipo, as cores e outros elementos da marca usados no PDF e no texto (hoje o logótipo vem com a app e as cores estão fixas).
+   - Outras ideias: backup automático periódico, estatísticas.
 
 ## 8. Requisitos não funcionais e questões em aberto
 

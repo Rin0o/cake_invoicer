@@ -66,13 +66,29 @@ Um orçamento antigo tem de dar sempre o mesmo valor. Por isso:
   [src/pdf/pdf.ts](../src/pdf/pdf.ts) chama `expo-print`, dá ao ficheiro um nome legível e abre a
   folha de partilha. O logótipo é `assets/diana_cakes_logo.png`, lido com `expo-asset` e embebido em
   base64. Para mudar o logótipo, substituir esse ficheiro (PNG quadrado, fundo transparente).
+  Rever o PDF e tornar o branding configurável está nos planos futuros (especificação, fase 3).
+
+## Número, pedido e dados do cliente
+
+- **Número** (`numero_ano` + `numero_seq`, único): atribuído em `repo.criarOrcamento`. O próximo é o
+  maior entre `numeracao.ultimo` e o maior `numero_seq` do ano, mais 1, por isso apagar um
+  orçamento ou importar um backup nunca faz repetir números. Formato em
+  [src/domain/numero.ts](../src/domain/numero.ts) (`formatarNumero`); `numerarPorAno` aplica a regra
+  da migração v3 aos backups antigos. O número é público (PDF e texto).
+- **Pedido** (`orcamentos.titulo`): só interno; `DadosPdf` e `DadosResumo` não o recebem.
+- **Contactos** ([src/ui/EscolherContacto.tsx](../src/ui/EscolherContacto.tsx), `expo-contacts`):
+  `Contact.presentPicker()` só devolve o id, por isso é preciso `READ_CONTACTS` para ler os números.
+  `WRITE_CONTACTS` está em `android.blockedPermissions` no `app.json`. Os dados são copiados para o
+  orçamento. Etiquetas e repetidos em [src/domain/contacto.ts](../src/domain/contacto.ts).
+- **Calendário** ([src/ui/escolherData.ts](../src/ui/escolherData.ts)): `DateTimePickerAndroid.open`
+  com o design por omissão (o Material 3 obrigaria a mudar o tema nativo).
 
 ## Base de dados
 
 - [src/db/migrations.ts](../src/db/migrations.ts): lista de migrations SQL; a versão fica em
   `PRAGMA user_version`. Corre no arranque, via `SQLiteProvider onInit`.
 - [src/db/repo.ts](../src/db/repo.ts): todas as queries, com tipos à mão.
-- Não há ORM: com 7 tabelas, SQL direto é mais simples de ler e testar.
+- Não há ORM: com 8 tabelas, SQL direto é mais simples de ler e testar.
 - `PRAGMA foreign_keys = ON`: apagar um orçamento apaga os bolos e as linhas (`ON DELETE CASCADE`);
   apagar um item deixa as linhas com `item_id = NULL`, mantendo o texto e o preço copiados.
 
