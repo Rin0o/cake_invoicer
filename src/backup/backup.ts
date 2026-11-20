@@ -12,6 +12,8 @@ import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { numerarPorAno, ultimosPorAno, type NumeroOrcamento } from '@/domain/numero';
+
 const APP_ID = 'orcamentos-bolos';
 const MAX_BACKUPS_AUTOMATICOS = 10;
 
@@ -24,9 +26,11 @@ export const TABELAS: Record<string, string[]> = {
     'id', 'receita_id', 'item_id', 'livre', 'descricao', 'unidade_entrada', 'quantidade', 'valor_cent', 'ordem',
   ],
   orcamentos: [
-    'id', 'cliente', 'contacto', 'data_entrega', 'estado', 'notas', 'valor_hora_cent', 'indireto_pct',
-    'margem_pct', 'total_calc_cent', 'total_cent', 'criado_em', 'atualizado_em',
+    'id', 'numero_ano', 'numero_seq', 'cliente', 'titulo', 'contacto', 'data_entrega', 'estado', 'notas',
+    'valor_hora_cent', 'indireto_pct', 'margem_pct', 'total_calc_cent', 'total_cent', 'criado_em',
+    'atualizado_em',
   ],
+  numeracao: ['ano', 'ultimo'],
   orcamento_bolos: ['id', 'orcamento_id', 'nome', 'ordem', 'tempo_min', 'preco_final_cent', 'preco_calc_no_ajuste_cent'],
   orcamento_linhas: [
     'id', 'bolo_id', 'item_id', 'livre', 'descricao', 'unidade', 'unidade_entrada', 'quantidade',
@@ -117,6 +121,12 @@ const ATUALIZAR_BACKUP: ((t: Backup['tabelas']) => void)[] = [
   (t) => {
     t.receitas = [];
     t.receita_linhas = [];
+  },
+  // v2 → v3: número do orçamento (mesma regra da migração) e título
+  (t) => {
+    const orcamentos = (t.orcamentos ?? []) as { id: number; criado_em: string }[];
+    t.orcamentos = numerarPorAno(orcamentos).map((o) => ({ titulo: '', ...o }));
+    t.numeracao = ultimosPorAno(t.orcamentos as unknown as NumeroOrcamento[]);
   },
 ];
 

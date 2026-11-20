@@ -1,3 +1,4 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
@@ -7,18 +8,13 @@ import { Chip, FAB, Searchbar, Text } from 'react-native-paper';
 import { atualizarOrcamento, criarOrcamento, listarOrcamentos, type ResumoOrcamento } from '@/db/repo';
 import { ESTADOS, NOME_ESTADO, type EstadoOrcamento } from '@/domain/estados';
 import { formatarData, formatarEuroInteiro } from '@/domain/format';
+import { formatarNumero } from '@/domain/numero';
 import { CartaoLista, Etiqueta } from '@/ui/CartaoLista';
 import { mostrarErro } from '@/ui/confirmar';
 import { DialogoEstado } from '@/ui/Estado';
 import { avisar } from '@/ui/Guardar';
 import { COR_ESTADO, espaco, estiloChipEstado, tema } from '@/ui/theme';
 
-function detalhes(o: ResumoOrcamento) {
-  const partes: string[] = [];
-  if (o.data_entrega) partes.push(`Entrega ${formatarData(o.data_entrega)}`);
-  partes.push(o.n_bolos === 1 ? '1 bolo' : `${o.n_bolos} bolos`);
-  return partes.join(' · ');
-}
 
 export default function Orcamentos() {
   const db = useSQLiteContext();
@@ -58,7 +54,7 @@ export default function Orcamentos() {
   return (
     <View style={styles.ecra}>
       <Searchbar
-        placeholder="Pesquisar cliente"
+        placeholder="Pesquisar cliente, pedido ou nº"
         value={pesquisa}
         onChangeText={setPesquisa}
         style={styles.pesquisa}
@@ -99,17 +95,38 @@ export default function Orcamentos() {
               corIcone={cor.texto}
               fundoIcone={cor.fundo}
               descricao={
-                <View style={styles.linhaDetalhes}>
-                  <Etiqueta texto={NOME_ESTADO[o.estado]} cor={cor.texto} fundo={cor.fundo} />
-                  <Text variant="bodySmall" numberOfLines={1} style={styles.detalhes}>
-                    {detalhes(o)}
-                  </Text>
-                </View>
+                <>
+                  {o.titulo ? (
+                    <Text variant="bodyMedium" numberOfLines={1}>
+                      {o.titulo}
+                    </Text>
+                  ) : null}
+                  <View style={styles.linhaDetalhes}>
+                    <Etiqueta texto={NOME_ESTADO[o.estado]} cor={cor.texto} fundo={cor.fundo} />
+                    {o.data_entrega ? (
+                      <View style={styles.entrega} accessibilityLabel={`Entrega ${formatarData(o.data_entrega)}`}>
+                        <MaterialCommunityIcons
+                          name="calendar-month-outline"
+                          size={14}
+                          color={tema.colors.onSurfaceVariant}
+                        />
+                        <Text variant="bodySmall" numberOfLines={1} style={styles.detalhes}>
+                          {formatarData(o.data_entrega)}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </>
               }
               direita={
-                <Text variant="titleMedium" style={styles.total}>
-                  {formatarEuroInteiro(o.total_cent)}
-                </Text>
+                <View style={styles.direita}>
+                  <Text variant="labelMedium" style={styles.numero} accessibilityLabel={`Número ${formatarNumero(o)}`}>
+                    {formatarNumero(o)}
+                  </Text>
+                  <Text variant="titleMedium" style={styles.total}>
+                    {formatarEuroInteiro(o.total_cent)}
+                  </Text>
+                </View>
               }
               onPress={() => router.push({ pathname: '/orcamento/[id]', params: { id: String(o.id) } })}
               onLongPress={() => setAMudar(o)}
@@ -120,7 +137,7 @@ export default function Orcamentos() {
       />
       <DialogoEstado
         visivel={aMudar !== null}
-        titulo={aMudar?.cliente || 'Mudar estado'}
+        titulo={aMudar ? aMudar.cliente || `Orçamento ${formatarNumero(aMudar)}` : 'Mudar estado'}
         estado={aMudar?.estado ?? null}
         aoEscolher={(e) => aMudar && mudarEstado(aMudar, e)}
         aoFechar={() => setAMudar(null)}
@@ -138,7 +155,10 @@ const styles = StyleSheet.create({
   vazio: { textAlign: 'center', marginTop: espaco.l * 2, color: tema.colors.onSurfaceVariant },
   semCliente: { fontStyle: 'italic', color: tema.colors.onSurfaceVariant },
   linhaDetalhes: { flexDirection: 'row', alignItems: 'center', gap: espaco.s },
+  entrega: { flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 1 },
   detalhes: { flexShrink: 1, color: tema.colors.onSurfaceVariant },
+  direita: { alignItems: 'flex-end', gap: 2 },
+  numero: { color: tema.colors.onSurfaceVariant },
   total: { fontWeight: 'bold', color: tema.colors.primary },
   fab: { position: 'absolute', right: espaco.m, bottom: espaco.m },
 });

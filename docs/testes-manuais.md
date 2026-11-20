@@ -42,8 +42,22 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
 
 ## Orçamento
 
-- [ ] Criar um orçamento novo: abre com "Bolo 1".
+- [ ] Criar um orçamento novo: abre com "Bolo 1" e o número seguinte do ano (ex.: `Nº 2026-004`)
+      ao lado de "Cliente". Apagar o último e criar outro: o número não se repete.
+- [ ] Depois de atualizar a app, os orçamentos antigos têm número (por ordem de criação em cada ano).
+- [ ] **Pedido (interno)**: escrever "Aniversário 5 anos" → aparece na lista por baixo do nome e no
+      cartão do cliente fechado. Sem pedido, a lista fica como antes (sem linha vazia).
+- [ ] Pesquisar na lista pelo pedido ("aniv") e pelo número ("2026-004" ou "004").
+- [ ] Cada cartão da lista: à esquerda cliente, pedido, estado e 📅 data de entrega; à direita o
+      número por cima do total. Com um nome ou pedido comprido, o número e o total não são cortados.
 - [ ] Preencher o cliente, o contacto e a data (`5/3/27` → `05/03/2027`); data inválida mostra erro.
+- [ ] **Escolher dos contactos**: na primeira vez pede acesso aos contactos. Um contacto com um só
+      número preenche o nome e o número. Com vários números e emails, aparece a lista para escolher
+      ("Só o nome" deixa o contacto como estava). Sem telefone nem email, só muda o nome. Cancelar o
+      seletor não altera nada. Recusar o acesso duas vezes e tentar de novo leva às definições.
+- [ ] **Calendário** (ícone no campo Data de entrega): sem data abre em hoje; com data abre nessa
+      data. Escolher um dia → o campo mostra `dd/mm/aaaa` e o cabeçalho "Guardado ✓". "Sem data"
+      apaga a data; Cancelar não muda nada. Com algo escrito no campo, tocar no ícone fecha o teclado.
 - [ ] Adicionar um ingrediente em g (ex.: 300 g a 1,20 €/kg = 0,36 €); a pré-visualização bate certo.
 - [ ] Mudar para kg no seletor de unidade e voltar a g.
 - [ ] Adicionar uma linha livre; editá-la; removê-la.
@@ -92,13 +106,14 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
 
 ## Partilha
 
-- [ ] **Enviar PDF** → WhatsApp e → Drive: o ficheiro chama-se `Orcamento-<cliente>-<data>.pdf`.
-- [ ] O PDF abre em A4 com o logótipo nítido (sem manchas à volta), data, entrega, bolos com o
-      preço final e total certo. Acentos corretos. **Sem** o nome do cliente.
+- [ ] **Enviar PDF** → WhatsApp e → Drive: o ficheiro chama-se `Orcamento-<número>-<cliente>.pdf`.
+- [ ] O PDF abre em A4 com o logótipo nítido (sem manchas à volta), número, data, entrega, bolos
+      com o preço final e total certo. Acentos corretos. **Sem** o nome do cliente.
+- [ ] O texto começa por "*Orçamento nº 2026-004 — <negócio>*".
 - [ ] Orçamento sem data de entrega: o PDF não mostra linhas vazias.
 - [ ] Muitos bolos (ex.: 15): o PDF passa para a segunda página sem cortar linhas a meio.
 - [ ] **Enviar em texto** → WhatsApp: o texto chega formatado (negrito no título e no total).
-- [ ] O PDF e o texto **não** incluem o nome do cliente, ingredientes, o custo, as notas internas,
+- [ ] O PDF e o texto **não** incluem o nome do cliente, o pedido, ingredientes, o custo, as notas internas,
       contactos nem o preço calculado de um bolo ajustado.
 
 ## Backup
@@ -107,6 +122,8 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
 - [ ] Criar um orçamento de teste; restaurar o backup: o orçamento de teste desaparece e os dados
       voltam ao estado do backup.
 - [ ] Restaurar um backup feito na versão 0.1.0: importa sem erro.
+- [ ] Restaurar um backup de antes dos números: os orçamentos ficam numerados; um orçamento novo
+      continua a numeração.
 - [ ] O backup inclui as receitas (restaurar e confirmar que voltam).
 - [ ] Restaurar um ficheiro que não é backup (ex.: uma foto): mostra erro e não altera nada.
 - [ ] Cancelar a escolha do ficheiro não faz nada.

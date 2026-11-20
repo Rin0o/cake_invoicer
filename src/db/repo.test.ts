@@ -3,6 +3,7 @@ import { gerarBackup, restaurarBackup, TABELAS, validarBackup } from '@/backup/b
 import { migrar, MIGRATIONS, VERSAO_SCHEMA } from '@/db/migrations';
 import * as repo from '@/db/repo';
 import { abrirBaseDeTeste } from '@/db/testDb';
+import { formatarNumero } from '@/domain/numero';
 import { paraUnidadeItem } from '@/domain/units';
 
 jest.mock('expo-file-system', () => ({}));
@@ -148,6 +149,33 @@ describe('orçamentos', () => {
     expect((await repo.listarOrcamentos(db, { pesquisa: 'ana' })).map((o) => o.id)).toEqual([a]);
     expect((await repo.listarOrcamentos(db, { pesquisa: '%' })).map((o) => o.id)).toEqual([b]);
     expect(await repo.listarOrcamentos(db)).toHaveLength(2);
+  });
+
+  it('pesquisa pelo título e pelo número', async () => {
+    const db = await novaBase();
+    const a = await repo.criarOrcamento(db, { hoje: '2026-11-19' });
+    const b = await repo.criarOrcamento(db, { hoje: '2026-11-19' });
+    await repo.atualizarOrcamento(db, a, { cliente: 'Ana', titulo: 'Aniversário 5 anos' });
+    await repo.atualizarOrcamento(db, b, { cliente: 'Ana', titulo: 'Batizado' });
+    const ids = async (pesquisa: string) => (await repo.listarOrcamentos(db, { pesquisa })).map((o) => o.id);
+    expect(await ids('batiz')).toEqual([b]);
+    expect(await ids('2026-001')).toEqual([a]);
+    expect(await ids(' 002 ')).toEqual([b]);
+  });
+
+  it('numera por ano, sem reutilizar números apagados', async () => {
+    const db = await novaBase();
+    const numero = async (id: number) => formatarNumero((await repo.obterOrcamento(db, id))!);
+    const a = await repo.criarOrcamento(db, { hoje: '2026-12-30' });
+    const b = await repo.criarOrcamento(db, { hoje: '2026-12-31' });
+    expect([await numero(a), await numero(b)]).toEqual(['2026-001', '2026-002']);
+
+    await repo.apagarOrcamento(db, b);
+    const c = await repo.criarOrcamento(db, { hoje: '2026-12-31' });
+    expect(await numero(c)).toBe('2026-003');
+
+    const d = await repo.criarOrcamento(db, { hoje: '2027-01-01' });
+    expect(await numero(d)).toBe('2027-001');
   });
 
   it('filtra por estado e combina com a pesquisa', async () => {
@@ -381,7 +409,7 @@ describe('migração v1 → v2', () => {
     await restaurarBackup(outra, validarBackup(JSON.parse(JSON.stringify(antes)), VERSAO_SCHEMA));
     expect((await repo.listarItens(outra)).map((i) => i.nome)).toEqual(['Açúcar']);
     const v = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
-    expect(v?.user_version).toBe(2);
+    expect(v?.user_version).toBe(VERSAO_SCHEMA);
     const d = await repo.obterDefinicoes(db);
     expect(d.nome_negocio).toBe('Doces');
     expect('contacto' in d).toBe(false);
@@ -391,7 +419,80 @@ describe('migração v1 → v2', () => {
   });
 });
 
+describe('migração v2 → v3', () => {
+  it('numera os orçamentos existentes por ano e continua a numeração', async () => {
+    const espiao = jest.spyOn(backupModulo, 'guardarBackupAutomatico').mockResolvedValue();
+    const db = abrirBaseDeTeste();
+    await db.execAsync(MIGRATIONS[0]);
+    await db.execAsync(MIGRATIONS[1]);
+    await db.execAsync('PRAGMA user_version = 2');
+    const inserir = (cliente: string, criado: string) =>
+      db.runAsync(
+        `INSERT INTO orcamentos (cliente, valor_hora_cent, indireto_pct, margem_pct, criado_em, atualizado_em)
+         VALUES (?, 1000, 10, 30, ?, ?)`,
+        cliente, criado, criado,
+      );
+    await inserir('Dezembro', '2026-12-01T10:00:00.000Z');
+    await inserir('Novembro', '2026-11-01T10:00:00.000Z');
+    await inserir('Janeiro', '2027-01-05T10:00:00.000Z');
+
+    await migrar(db);
+
+    expect(espiao).toHaveBeenCalledWith(db, 'pre-migracao-v2');
+    const lista = await repo.listarOrcamentos(db);
+    const porCliente = Object.fromEntries(lista.map((o) => [o.cliente, formatarNumero(o)]));
+    expect(porCliente).toEqual({ Novembro: '2026-001', Dezembro: '2026-002', Janeiro: '2027-001' });
+    expect(lista.every((o) => o.titulo === '')).toBe(true);
+
+    const novo = await repo.criarOrcamento(db, { hoje: '2026-12-20' });
+    expect(formatarNumero((await repo.obterOrcamento(db, novo))!)).toBe('2026-003');
+    espiao.mockRestore();
+  });
+});
+
 describe('backup', () => {
+  it('restaura números e título, e a numeração continua depois do maior', async () => {
+    const origem = await novaBase();
+    const a = await repo.criarOrcamento(origem, { hoje: '2026-11-19' });
+    const b = await repo.criarOrcamento(origem, { hoje: '2026-11-19' });
+    await repo.atualizarOrcamento(origem, a, { titulo: 'Batizado' });
+    await repo.apagarOrcamento(origem, b); // o 002 fica "gasto"
+    const backup = validarBackup(JSON.parse(JSON.stringify(await gerarBackup(origem))), VERSAO_SCHEMA);
+
+    const destino = await novaBase();
+    await restaurarBackup(destino, backup);
+    const o = (await repo.obterOrcamento(destino, a))!;
+    expect([formatarNumero(o), o.titulo]).toEqual(['2026-001', 'Batizado']);
+    const c = await repo.criarOrcamento(destino, { hoje: '2026-11-20' });
+    expect(formatarNumero((await repo.obterOrcamento(destino, c))!)).toBe('2026-003');
+  });
+
+  it('importa um backup v2 e numera os orçamentos', async () => {
+    const origem = abrirBaseDeTeste();
+    await origem.execAsync(MIGRATIONS[0]);
+    await origem.execAsync(MIGRATIONS[1]);
+    await origem.execAsync('PRAGMA user_version = 2');
+    for (const [cliente, criado] of [['B', '2026-11-02T00:00:00.000Z'], ['A', '2026-11-01T00:00:00.000Z']]) {
+      await origem.runAsync(
+        `INSERT INTO orcamentos (cliente, valor_hora_cent, indireto_pct, margem_pct, criado_em, atualizado_em)
+         VALUES (?, 1000, 10, 30, ?, ?)`,
+        cliente, criado, criado,
+      );
+    }
+    const v2 = JSON.parse(JSON.stringify(await gerarBackup(origem)));
+    expect(v2.versao_schema).toBe(2);
+
+    const destino = await novaBase();
+    await restaurarBackup(destino, validarBackup(v2, VERSAO_SCHEMA));
+    const lista = await repo.listarOrcamentos(destino);
+    expect(Object.fromEntries(lista.map((o) => [o.cliente, formatarNumero(o)]))).toEqual({
+      A: '2026-001',
+      B: '2026-002',
+    });
+    const c = await repo.criarOrcamento(destino, { hoje: '2026-11-20' });
+    expect(formatarNumero((await repo.obterOrcamento(destino, c))!)).toBe('2026-003');
+  });
+
   it('exporta e restaura todos os dados', async () => {
     const origem = await novaBase();
     const farinha = await itemFarinha(origem);

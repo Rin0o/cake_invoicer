@@ -13,6 +13,7 @@ function dados(extra: Partial<DadosPdf> = {}): DadosPdf {
   );
   return {
     logotipo: 'data:image/png;base64,AAAA',
+    numero: '2027-014',
     dataEntrega: '2027-03-05',
     dataEmissao: '2027-02-20',
     bolos: [{ nome: 'Bolo de chocolate' }, { nome: 'Cupcakes' }],
@@ -26,6 +27,7 @@ describe('htmlOrcamento', () => {
     const html = htmlOrcamento(dados());
     expect(html).toContain('<img src="data:image/png;base64,AAAA"');
     expect(html).not.toContain('Cliente');
+    expect(html).toMatch(/Número<\/span> 2027-014/);
     expect(html).toContain('05/03/2027');
     expect(html).toContain('20/02/2027');
     expect(html).toMatch(/Bolo de chocolate<\/td><td class="valor">45 €/);
@@ -60,12 +62,12 @@ describe('escaparHtml', () => {
 });
 
 describe('nomeFicheiroPdf', () => {
-  it('sem acentos nem espaços', () => {
-    expect(nomeFicheiroPdf('Ana Conceição', '2027-03-05')).toBe('Orcamento-Ana-Conceicao-2027-03-05.pdf');
-    expect(nomeFicheiroPdf('  / Rui! ', '2027-03-05')).toBe('Orcamento-Rui-2027-03-05.pdf');
+  it('número e cliente, sem acentos nem espaços', () => {
+    expect(nomeFicheiroPdf('2027-014', 'Ana Conceição')).toBe('Orcamento-2027-014-Ana-Conceicao.pdf');
+    expect(nomeFicheiroPdf('2027-014', '  / Rui! ')).toBe('Orcamento-2027-014-Rui.pdf');
   });
 
   it('sem cliente', () => {
-    expect(nomeFicheiroPdf('', '2027-03-05')).toBe('Orcamento-2027-03-05.pdf');
+    expect(nomeFicheiroPdf('2027-014', '')).toBe('Orcamento-2027-014.pdf');
   });
 });

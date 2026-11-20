@@ -2,8 +2,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, ScrollView, Share, StyleSheet, View } from 'react-native';
-import { Avatar, Button, Card, IconButton, Surface, Text, TouchableRipple } from 'react-native-paper';
+import { Keyboard, KeyboardAvoidingView, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Avatar, Button, Card, IconButton, Surface, Text, TextInput, TouchableRipple } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -25,6 +25,7 @@ import {
   lerData,
   lerDecimal,
 } from '@/domain/format';
+import { formatarNumero } from '@/domain/numero';
 import { partilharPdf } from '@/pdf/pdf';
 import { resumoTexto } from '@/share/texto';
 import { BoloCard } from '@/ui/BoloCard';
@@ -36,8 +37,11 @@ import {
   GestorGuardar,
   TituloComEstado,
   useColapsavel,
+  useGestor,
   useGestorGuardar,
 } from '@/ui/Guardar';
+import { EscolherContacto, type DadosContacto } from '@/ui/EscolherContacto';
+import { escolherData } from '@/ui/escolherData';
 import { MenuMais } from '@/ui/MenuMais';
 import { useTecladoVisivel } from '@/ui/teclado';
 import { BotaoEstado, DialogoEstado, PassosSeguintes } from '@/ui/Estado';
@@ -45,12 +49,29 @@ import { espaco, tema } from '@/ui/theme';
 
 type GuardarCampos = (campos: Parameters<typeof atualizarOrcamento>[2]) => Promise<void>;
 
-/** Dados do cliente e margem. Fechado, mostra só cliente, entrega e contacto. */
+/** Dados do cliente e margem. Fechado, mostra só cliente, título, número, entrega e contacto. */
 function DadosCliente({ o, guardarCampos }: { o: OrcamentoCompleto; guardarCampos: GuardarCampos }) {
   const { aberto, alternar } = useColapsavel(!o.cliente);
+  const gestor = useGestor();
+
+  function usarContacto({ nome, contacto }: DadosContacto) {
+    const campos = { ...(nome ? { cliente: nome } : {}), ...(contacto !== null ? { contacto } : {}) };
+    if (Object.keys(campos).length === 0) return;
+    if (gestor) gestor.executar(() => guardarCampos(campos));
+    else guardarCampos(campos).catch(mostrarErro);
+  }
+
+  async function escolherEntrega() {
+    Keyboard.dismiss();
+    const iso = await escolherData(o.data_entrega);
+    if (iso === undefined || iso === o.data_entrega) return;
+    if (gestor) gestor.executar(() => guardarCampos({ data_entrega: iso }));
+    else guardarCampos({ data_entrega: iso }).catch(mostrarErro);
+  }
 
   if (!aberto) {
     const detalhes = [
+      `Nº ${formatarNumero(o)}`,
       o.data_entrega ? `Entrega ${formatarData(o.data_entrega)}` : 'Sem data de entrega',
       o.contacto,
     ].filter(Boolean);
@@ -68,6 +89,11 @@ function DadosCliente({ o, guardarCampos }: { o: OrcamentoCompleto; guardarCampo
               <Text variant="titleMedium" numberOfLines={1} style={!o.cliente && styles.semCliente}>
                 {o.cliente || 'Sem cliente'}
               </Text>
+              {o.titulo ? (
+                <Text variant="bodyMedium" numberOfLines={1}>
+                  {o.titulo}
+                </Text>
+              ) : null}
               <Text variant="bodySmall" numberOfLines={1} style={styles.secundario}>
                 {detalhes.join(' · ')}
               </Text>
@@ -84,8 +110,14 @@ function DadosCliente({ o, guardarCampos }: { o: OrcamentoCompleto; guardarCampo
       <Card.Content style={styles.campos}>
         <View style={styles.clienteTitulo}>
           <Text variant="titleMedium">Cliente</Text>
-          <IconButton icon="chevron-up" onPress={alternar} accessibilityLabel="Fechar dados do cliente" />
+          <View style={styles.acoes}>
+            <Text variant="labelLarge" style={styles.numero}>
+              Nº {formatarNumero(o)}
+            </Text>
+            <IconButton icon="chevron-up" onPress={alternar} accessibilityLabel="Fechar dados do cliente" />
+          </View>
         </View>
+        <EscolherContacto aoEscolher={usarContacto} />
         <CampoAutoGuardado label="Cliente" valor={o.cliente} aoGuardar={(t) => guardarCampos({ cliente: t.trim() })} />
         <CampoAutoGuardado
           label="Contacto do cliente"
@@ -94,10 +126,24 @@ function DadosCliente({ o, guardarCampos }: { o: OrcamentoCompleto; guardarCampo
           aoGuardar={(t) => guardarCampos({ contacto: t.trim() })}
         />
         <CampoAutoGuardado
+          label="Pedido (interno)"
+          placeholder="Ex.: Aniversário 5 anos"
+          valor={o.titulo}
+          ajuda="Para reconhecer o pedido na lista. Não vai para o PDF."
+          aoGuardar={(t) => guardarCampos({ titulo: t.trim() })}
+        />
+        <CampoAutoGuardado
           label="Data de entrega"
           placeholder="dd/mm/aaaa"
           valor={formatarData(o.data_entrega)}
           keyboardType="numbers-and-punctuation"
+          right={
+            <TextInput.Icon
+              icon="calendar-month-outline"
+              accessibilityLabel="Escolher data de entrega no calendário"
+              onPress={escolherEntrega}
+            />
+          }
           aoGuardar={async (t) => {
             if (t.trim() === '') return guardarCampos({ data_entrega: null });
             const iso = lerData(t);
@@ -167,7 +213,13 @@ export default function EditarOrcamento() {
     try {
       if (como === 'pdf') {
         await partilharPdf(
-          { dataEntrega: o.data_entrega, bolos: o.bolos, calculo: calc, dataEmissao: hojeIso() },
+          {
+            numero: formatarNumero(o),
+            dataEntrega: o.data_entrega,
+            bolos: o.bolos,
+            calculo: calc,
+            dataEmissao: hojeIso(),
+          },
           o.cliente,
         );
       } else {
@@ -175,6 +227,7 @@ export default function EditarOrcamento() {
         await Share.share({
           message: resumoTexto({
             nomeNegocio: d.nome_negocio,
+            numero: formatarNumero(o),
             dataEntrega: o.data_entrega,
             bolos: o.bolos,
             calculo: calc,
@@ -191,8 +244,9 @@ export default function EditarOrcamento() {
   }
 
   async function apagar() {
-    const nome = o?.cliente ? ` de ${o.cliente}` : '';
-    if (!(await confirmar(`Apagar o orçamento${nome}?`, 'Isto não se pode desfazer.'))) return;
+    if (!o) return;
+    const nome = o.cliente ? ` de ${o.cliente}` : '';
+    if (!(await confirmar(`Apagar o orçamento ${formatarNumero(o)}${nome}?`, 'Isto não se pode desfazer.'))) return;
     try {
       await apagarOrcamento(db, orcamentoId);
       avisar('Orçamento apagado');
@@ -218,7 +272,9 @@ export default function EditarOrcamento() {
       <KeyboardAvoidingView style={styles.flex} behavior="height">
         <Stack.Screen
           options={{
-            headerTitle: () => <TituloComEstado titulo={o.cliente || 'Orçamento'} estado={gestor.estado} />,
+            headerTitle: () => (
+              <TituloComEstado titulo={o.cliente || `Orçamento ${formatarNumero(o)}`} estado={gestor.estado} />
+            ),
             headerRight: () => (
               <View style={styles.acoes}>
                 <BotaoConcluido gestor={gestor} mensagem="Orçamento guardado" />
@@ -325,6 +381,7 @@ const styles = StyleSheet.create({
   acoes: { flexDirection: 'row', alignItems: 'center' },
   botao: { marginHorizontal: espaco.m, marginBottom: espaco.m },
   secundario: { color: tema.colors.onSurfaceVariant, marginTop: espaco.xs },
+  numero: { color: tema.colors.onSurfaceVariant },
   semCliente: { fontStyle: 'italic', color: tema.colors.onSurfaceVariant },
   toque: { borderRadius: tema.roundness * 3 },
   clienteFechado: { flexDirection: 'row', alignItems: 'center', gap: espaco.m, padding: espaco.m - 4 },

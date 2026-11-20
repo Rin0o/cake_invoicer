@@ -18,7 +18,10 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "softwareKeyboardLayoutMode": "resize",
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.WRITE_CONTACTS"
+      ]
     },
     "web": {
       "output": "single",
@@ -36,7 +39,9 @@
       ],
       "expo-sqlite",
       "expo-sharing",
-      "expo-asset"
+      "expo-asset",
+      "expo-contacts",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

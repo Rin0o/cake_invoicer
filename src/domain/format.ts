@@ -103,6 +103,13 @@ export function hojeIso(agora = new Date()): string {
   return `${agora.getFullYear()}-${m}-${d}`;
 }
 
+/** "aaaa-mm-dd" → `Date` à meia-noite local (para o seletor de data). Sem data → hoje. */
+export function isoParaData(iso: string | null | undefined, agora = new Date()): Date {
+  if (!iso) return new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  const [a, m, d] = iso.split('-').map(Number);
+  return new Date(a, m - 1, d);
+}
+
 /** "aaaa-mm-dd" → "dd/mm/aaaa". */
 export function formatarData(iso: string | null | undefined): string {
   if (!iso) return '';
