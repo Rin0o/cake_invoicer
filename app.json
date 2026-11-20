@@ -41,7 +41,8 @@
       "expo-sharing",
       "expo-asset",
       "expo-contacts",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "./plugins/withAssinaturaRelease"
     ],
     "experiments": {
       "typedRoutes": true,

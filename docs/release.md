@@ -44,16 +44,64 @@ npm run build:apk
 A primeira vez, o EAS pergunta se deve ligar o projeto à conta (cria `extra.eas.projectId` em
 `app.json`, que deve ser commitado) e se deve gerar uma keystore (responder sim).
 
-### Opção C — build local, sem EAS
+### Opção C — build local, sem EAS (mais rápido)
 
-Requer o Android SDK e uma keystore própria:
+Requer o Android SDK e um JDK (ex.: 17 ou 21, com `JAVA_HOME` e `ANDROID_HOME` definidos) e
+**a mesma keystore do EAS**. Com outra keystore, o APK não instala por cima da versão anterior.
+
+Configuração (uma vez por computador):
+
+1. Descarregar a keystore: `npx eas-cli@latest credentials -p android` → perfil `apk` →
+   *credentials.json* → *Download credentials from EAS to credentials.json*.
+2. Mover o `.jks` para fora do projeto (ex.: `~/.android-keys/orcamentos-bolos.jks`) e guardar
+   o `credentials.json` com ele (tem as passwords). Os dois estão no `.gitignore`; nunca os commitar.
+3. Acrescentar a `~/.gradle/gradle.properties` (fora do repositório), com os valores do
+   `credentials.json`:
+   ```properties
+   ORCAMENTOS_UPLOAD_STORE_FILE=C:/Users/<utilizador>/.android-keys/orcamentos-bolos.jks
+   ORCAMENTOS_UPLOAD_KEY_ALIAS=<keyAlias>
+   ORCAMENTOS_UPLOAD_STORE_PASSWORD=<keystorePassword>
+   ORCAMENTOS_UPLOAD_KEY_PASSWORD=<keyPassword>
+   ```
+
+O config plugin [plugins/withAssinaturaRelease.js](../plugins/withAssinaturaRelease.js) usa
+estes valores para assinar o release. Sem eles, `assembleRelease` falha de propósito, em vez de
+gerar um APK assinado com a chave de debug. No EAS o plugin não muda nada.
+
+Gerar o APK:
 
 ```bash
-npx expo prebuild --platform android
+npx expo prebuild --platform android --clean
 cd android && ./gradlew assembleRelease
 ```
 
-As pastas `android/` e `ios/` são geradas e estão no `.gitignore`; não as editar à mão.
+O APK fica em `android/app/build/outputs/apk/release/app-release.apk`. O `prebuild` muda o
+script `android` em `package.json`; repor com `git checkout -- package.json`.
+
+**Windows:** a compilação nativa (ex.: `react-native-reanimated`) falha com
+`ninja: error: mkdir(...): No such file or directory`, por causa dos caminhos longos. O CMake
+3.22.1 usado por omissão traz o ninja 1.10, que não os suporta. Solução:
+
+1. Caminhos longos ativos no Windows (`LongPathsEnabled = 1` em
+   `HKLM\SYSTEM\CurrentControlSet\Control\FileSystem`; pede administrador).
+2. Instalar o CMake 3.31.6 (Android Studio → SDK Manager → SDK Tools → CMake), que traz o ninja 1.12.
+3. Depois de cada `prebuild --clean`, acrescentar a `android/local.properties` (ficheiro local,
+   fora do git):
+   ```properties
+   cmake.dir=C:\\Users\\<utilizador>\\AppData\\Local\\Android\\Sdk\\cmake\\3.31.6
+   ```
+
+Não usar `subst` para encurtar o caminho: o autolinking da Expo não encontra o `package.json`
+quando o projeto fica na raiz de uma unidade.
+
+O primeiro build demora uns 15 minutos (compila o código nativo para 4 arquiteturas); os seguintes
+reaproveitam a cache e são mais rápidos. O APK tem cerca de 100 MB.
+
+As pastas `android/` e `ios/` são geradas e estão no `.gitignore`; não as editar à mão (a
+assinatura vem do plugin).
+
+**Onde está a keystore:** EAS (conta Expo) e uma cópia em `~/.android-keys/` no computador de
+desenvolvimento. Guardar também uma cópia num gestor de passwords (ver *Keystore*, abaixo).
 
 ## Keystore
 
