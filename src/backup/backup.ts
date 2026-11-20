@@ -33,7 +33,7 @@ export const TABELAS: Record<string, string[]> = {
   orcamentos: [
     'id', 'numero_ano', 'numero_seq', 'cliente', 'titulo', 'contacto', 'data_entrega', 'estado', 'notas',
     'valor_hora_cent', 'indireto_pct', 'margem_pct', 'total_calc_cent', 'total_cent', 'criado_em',
-    'atualizado_em',
+    'atualizado_em', 'estado_em',
   ],
   numeracao: ['ano', 'ultimo'],
   orcamento_bolos: ['id', 'orcamento_id', 'nome', 'ordem', 'tempo_min', 'preco_final_cent', 'preco_calc_no_ajuste_cent'],
@@ -140,6 +140,10 @@ const ATUALIZAR_BACKUP: ((t: Backup['tabelas']) => void)[] = [
       contacto_telefone: '', contacto_email: '', contacto_instagram: '', contacto_facebook: '',
       contacto_tiktok: '', contacto_site: '', pdf_cor, ...d,
     }));
+  },
+  // v4 → v5: data do estado = última alteração (mesma regra da migração)
+  (t) => {
+    t.orcamentos = (t.orcamentos ?? []).map((o) => ({ estado_em: o.atualizado_em, ...o }));
   },
 ];
 

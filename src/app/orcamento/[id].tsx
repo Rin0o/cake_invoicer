@@ -18,6 +18,7 @@ import {
 import { avisoMudancaDeGrupo, estadoDepoisDePartilhar, type EstadoOrcamento } from '@/domain/estados';
 import {
   formatarData,
+  formatarDataDeInstante,
   formatarDecimal,
   formatarEuro,
   formatarEuroInteiro,
@@ -316,6 +317,11 @@ export default function EditarOrcamento() {
         <ScrollView contentContainerStyle={styles.conteudo} keyboardShouldPersistTaps="handled">
           <View style={styles.estados}>
             <BotaoEstado estado={o.estado} onPress={() => setEscolherEstado(true)} />
+            {formatarDataDeInstante(o.estado_em) ? (
+              <Text variant="bodySmall" style={styles.estadoDesde}>
+                desde {formatarDataDeInstante(o.estado_em)}
+              </Text>
+            ) : null}
             <PassosSeguintes estado={o.estado} aoEscolher={mudarEstado} />
           </View>
           <DialogoEstado
@@ -426,4 +432,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: espaco.m,
     paddingBottom: espaco.m,
   },
+  estadoDesde: { color: tema.colors.onSurfaceVariant },
 });

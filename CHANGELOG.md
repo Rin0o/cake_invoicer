@@ -22,6 +22,10 @@ Cada versão distribuída tem também um `android.versionCode` (em `app.json`) m
   (rascunho, enviado, aceite). Os entregues e os recusados ficam cada um no seu separador, do mais
   recente para o mais antigo, e cada separador mostra quantos orçamentos tem. A pesquisa continua
   a procurar em todos. Ao mudar de estado, uma mensagem diz para que lista foi o orçamento.
+- **Data do estado**: a app guarda quando cada orçamento mudou de estado pela última vez. No
+  orçamento aparece ao lado do estado ("desde 12/11/2026"). Nos entregues e recusados, o cartão da
+  lista mostra essa data em vez da entrega, e o histórico ordena-se por ela. Nos orçamentos que já
+  existiam, a data é a da última alteração (aproximada).
 - **Reabrir um recusado**: no orçamento recusado há um botão "Reabrir", que o volta a rascunho
   para ajustar e reenviar.
 - **Cor do PDF**: escolher uma de oito cores nas Definições. Quem já tinha orçamentos fica com a
@@ -46,6 +50,8 @@ Cada versão distribuída tem também um `android.versionCode` (em `app.json`) m
 
 - v4: colunas `definicoes.pdf_cor`, `contacto_telefone`, `contacto_email`, `contacto_instagram`,
   `contacto_facebook`, `contacto_tiktok` e `contacto_site`. Os backups antigos continuam a importar.
+- v5: coluna `orcamentos.estado_em`, preenchida com `atualizado_em` nos orçamentos existentes (e nos
+  backups antigos ao importar).
 
 ## [0.2.0] — 2026-11-20
 

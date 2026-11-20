@@ -118,7 +118,13 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
 - [ ] Escrever na pesquisa esconde os separadores, mostra "A procurar em todos os orçamentos" e
       encontra também entregues e recusados. Apagar a pesquisa volta ao separador anterior.
 - [ ] Ordem nos Abertos: entregas de hoje e futuras primeiro (a mais próxima no topo), depois as
-      passadas, e no fim as sem data. Nos Entregues e Recusados: do mais recente para o mais antigo.
+      passadas, e no fim as sem data. Nos Entregues e Recusados: o último a mudar de estado no topo.
+- [ ] No orçamento, ao lado do estado aparece "desde <data>". Mudar o estado põe a data de hoje;
+      editar o cliente ou os bolos não a muda.
+- [ ] Nos Entregues e Recusados, o cartão mostra a data em que ficou nesse estado (ícone de
+      calendário com visto), não a da entrega.
+- [ ] Depois de atualizar a app sobre uma versão anterior, os orçamentos antigos mostram uma data
+      (a da última alteração) e nenhum fica sem data.
 - [ ] Num telemóvel estreito, os três separadores com números (ex.: "Entregues (40)") cabem sem cortar.
 
 ## Partilha

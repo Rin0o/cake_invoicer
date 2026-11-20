@@ -147,6 +147,14 @@ export const MIGRATIONS: string[] = [
 
   UPDATE definicoes SET pdf_cor = 'framboesa' WHERE EXISTS (SELECT 1 FROM orcamentos);
   `,
+
+  // v5 — data da última mudança de estado (ex.: quando foi entregue ou recusado).
+  // Nos orçamentos existentes não se sabe; usa-se a última alteração, o melhor palpite
+  // (a mesma regra do passo v4 → v5 em src/backup/backup.ts).
+  `
+  ALTER TABLE orcamentos ADD COLUMN estado_em TEXT NOT NULL DEFAULT '';
+  UPDATE orcamentos SET estado_em = atualizado_em;
+  `,
 ];
 
 export const VERSAO_SCHEMA = MIGRATIONS.length;

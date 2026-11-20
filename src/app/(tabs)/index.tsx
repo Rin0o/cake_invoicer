@@ -17,12 +17,13 @@ import {
   ESTADOS,
   ESTADOS_DO_GRUPO,
   GRUPOS,
+  grupoDoEstado,
   NOME_ESTADO,
   NOME_GRUPO,
   type EstadoOrcamento,
   type GrupoOrcamentos,
 } from '@/domain/estados';
-import { formatarData, formatarEuroInteiro } from '@/domain/format';
+import { formatarData, formatarDataDeInstante, formatarEuroInteiro } from '@/domain/format';
 import { formatarNumero } from '@/domain/numero';
 import { CartaoLista, Etiqueta } from '@/ui/CartaoLista';
 import { mostrarErro } from '@/ui/confirmar';
@@ -152,6 +153,10 @@ export default function Orcamentos() {
         }
         renderItem={({ item: o }) => {
           const cor = COR_ESTADO[o.estado];
+          // Num entregue ou recusado interessa quando ficou assim, não a entrega prevista.
+          const fechado = grupoDoEstado(o.estado) !== 'abertos';
+          const data = fechado ? formatarDataDeInstante(o.estado_em) : formatarData(o.data_entrega);
+          const rotuloData = fechado ? `${NOME_ESTADO[o.estado]} a ${data}` : `Entrega ${data}`;
           return (
             <CartaoLista
               titulo={o.cliente || 'Sem cliente'}
@@ -168,15 +173,15 @@ export default function Orcamentos() {
                   ) : null}
                   <View style={styles.linhaDetalhes}>
                     <Etiqueta texto={NOME_ESTADO[o.estado]} cor={cor.texto} fundo={cor.fundo} />
-                    {o.data_entrega ? (
-                      <View style={styles.entrega} accessibilityLabel={`Entrega ${formatarData(o.data_entrega)}`}>
+                    {data ? (
+                      <View style={styles.entrega} accessibilityLabel={rotuloData}>
                         <MaterialCommunityIcons
-                          name="calendar-month-outline"
+                          name={fechado ? 'calendar-check-outline' : 'calendar-month-outline'}
                           size={14}
                           color={tema.colors.onSurfaceVariant}
                         />
                         <Text variant="bodySmall" numberOfLines={1} style={styles.detalhes}>
-                          {formatarData(o.data_entrega)}
+                          {data}
                         </Text>
                       </View>
                     ) : null}

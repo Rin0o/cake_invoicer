@@ -69,6 +69,8 @@ export interface Orcamento {
   total_cent: number;
   criado_em: string;
   atualizado_em: string;
+  /** Quando o estado mudou pela última vez (ISO). Muda só com o estado, não com outras edições. */
+  estado_em: string;
 }
 
 export interface Bolo {
@@ -236,8 +238,8 @@ async function numerosDaPesquisa(db: SQLiteDatabase, pesquisa: string): Promise<
  * Orçamentos, com pesquisa por cliente, título, número ou referência, e filtro por grupo e/ou
  * estado. Ordem: entregas de hoje em diante (a mais próxima primeiro), depois as passadas
  * (a mais recente primeiro), e no fim os orçamentos sem data de entrega.
- * Nos grupos do histórico (entregues, recusados) a ordem é só do mais recente para o mais
- * antigo, pela data de entrega ou, sem ela, pela de criação.
+ * Nos grupos do histórico (entregues, recusados) a ordem é do mais recente para o mais antigo,
+ * pela data em que ficou nesse estado (`estado_em`).
  */
 export async function listarOrcamentos(
   db: SQLiteDatabase,
@@ -263,7 +265,7 @@ export async function listarOrcamentos(
   }
   let ordem: string;
   if (opcoes.grupo && opcoes.grupo !== 'abertos') {
-    ordem = `COALESCE(o.data_entrega, substr(o.criado_em, 1, 10)) DESC, o.criado_em DESC, o.id DESC`;
+    ordem = `o.estado_em DESC, o.id DESC`;
   } else {
     ordem = `CASE WHEN o.data_entrega IS NULL THEN 2 WHEN o.data_entrega >= ? THEN 0 ELSE 1 END,
        CASE WHEN o.data_entrega >= ? THEN o.data_entrega END ASC,
@@ -325,9 +327,9 @@ export async function criarOrcamento(db: SQLiteDatabase, opcoes: { hoje?: string
     const seq = await proximoNumero(db, ano);
     const r = await db.runAsync(
       `INSERT INTO orcamentos
-       (numero_ano, numero_seq, valor_hora_cent, indireto_pct, margem_pct, criado_em, atualizado_em)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ano, seq, d.valor_hora_cent, d.custo_indireto_pct, d.margem_pct, t, t,
+       (numero_ano, numero_seq, valor_hora_cent, indireto_pct, margem_pct, criado_em, atualizado_em, estado_em)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ano, seq, d.valor_hora_cent, d.custo_indireto_pct, d.margem_pct, t, t, t,
     );
     id = r.lastInsertRowId;
     await db.runAsync(
@@ -391,10 +393,14 @@ export async function atualizarOrcamento(
 ) {
   const chaves = Object.keys(campos) as (keyof typeof campos)[];
   if (chaves.length === 0) return;
-  await db.runAsync(
-    `UPDATE orcamentos SET ${chaves.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`,
-    ...chaves.map((k) => campos[k] ?? null), id,
-  );
+  const sets = chaves.map((k) => `${k} = ?`);
+  const args: (string | number | null)[] = chaves.map((k) => campos[k] ?? null);
+  if (campos.estado !== undefined) {
+    // Só conta como mudança se o estado for mesmo outro (o SQLite compara com o valor antigo).
+    sets.push('estado_em = CASE WHEN estado = ? THEN estado_em ELSE ? END');
+    args.push(campos.estado, agora());
+  }
+  await db.runAsync(`UPDATE orcamentos SET ${sets.join(', ')} WHERE id = ?`, ...args, id);
   await recalcularTotais(db, id);
 }
 
