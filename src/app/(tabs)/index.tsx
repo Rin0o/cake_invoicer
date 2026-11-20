@@ -54,7 +54,7 @@ export default function Orcamentos() {
   return (
     <View style={styles.ecra}>
       <Searchbar
-        placeholder="Pesquisar cliente, pedido ou nº"
+        placeholder="Pesquisar cliente, pedido, nº ou ref."
         value={pesquisa}
         onChangeText={setPesquisa}
         style={styles.pesquisa}

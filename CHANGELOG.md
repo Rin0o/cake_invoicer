@@ -16,9 +16,30 @@ Cada versão distribuída tem também um `android.versionCode` (em `app.json`) m
 
 ## [Por lançar]
 
-### Corrigido
+### Adicionado
 
-- O logótipo não aparecia no PDF do orçamento no APK instalado.
+- **Cor do PDF**: escolher uma de oito cores nas Definições. Quem já tinha orçamentos fica com a
+  cor de sempre (framboesa); uma instalação nova começa em azul-marinho.
+- **Contactos no PDF**: telefone, email, Instagram, Facebook, TikTok e site, nas Definições. Aparecem
+  no fundo do PDF e os vazios não aparecem. Nas redes sociais pode escrever "@nome" ou colar o link
+  do perfil.
+
+### Alterado
+
+- **O cliente deixa de ver o número sequencial** (`2026-001`), que revelava quantos orçamentos já
+  foram feitos. O PDF, o texto e o nome do ficheiro passam a ter uma referência que não segue uma
+  ordem (ex.: `2026-QJQX`). Na app continua o número, com a referência ao lado ("Nº 2026-001 · Ref.
+  2026-QJQX"), e a pesquisa aceita os dois. Os orçamentos já enviados mantêm o número que o cliente
+  recebeu, que também se pode pesquisar.
+- O PDF deixa de ter um logótipo fixo e mostra no topo o nome do negócio (Definições). Sem nome,
+  mostra só "Orçamento".
+- O nome, a cor e os contactos aplicam-se a todos os PDF, também aos de orçamentos antigos. Os preços
+  e as percentagens continuam guardados em cada orçamento.
+
+### Schema da base de dados
+
+- v4: colunas `definicoes.pdf_cor`, `contacto_telefone`, `contacto_email`, `contacto_instagram`,
+  `contacto_facebook`, `contacto_tiktok` e `contacto_site`. Os backups antigos continuam a importar.
 
 ## [0.2.0] — 2026-11-20
 

@@ -2,18 +2,36 @@
  * HTML do orçamento em PDF para o cliente. Módulo puro (testado sem telemóvel);
  * a geração do ficheiro está em `pdf.ts`.
  *
- * Mostra o número do orçamento, os preços finais de cada bolo e o total, como o resumo em texto.
- * Sem nome do negócio (o logótipo já o tem), nome do cliente, título do pedido, notas internas
- * nem detalhe de ingredientes.
+ * Mostra o nome do negócio no topo, o número do orçamento, os preços finais de cada bolo, o
+ * total e, no fundo, os contactos do negócio. Sem nome do cliente, título do pedido, notas
+ * internas nem detalhe de ingredientes.
+ *
+ * O nome, a cor e os contactos são sempre os das definições atuais (não ficam guardados no
+ * orçamento): são a apresentação do negócio, não fazem parte do preço.
  */
 import { formatarData, formatarEuroInteiro } from '@/domain/format';
 import type { OrcamentoCalculado } from '@/domain/pricing';
 
+import { corPdf } from './cores';
+
+/** Contactos do negócio, como estão nas definições. Os vazios não aparecem. */
+export interface ContactosNegocio {
+  telefone: string;
+  email: string;
+  instagram: string;
+  facebook: string;
+  tiktok: string;
+  site: string;
+}
+
 export interface DadosPdf {
-  /** Imagem em data URI (`data:image/png;base64,…`), ou `null` sem logótipo. */
-  logotipo: string | null;
-  /** Número público do orçamento ("2026-014"). */
-  numero: string;
+  /** Nome do negócio, em destaque no topo. Vazio: só o título "Orçamento". */
+  nomeNegocio: string;
+  /** Id da cor, ver `CORES_PDF`. */
+  cor: string;
+  contactos: ContactosNegocio;
+  /** Referência do orçamento para o cliente ("2026-QJQX"), ver `formatarReferencia`. */
+  referencia: string;
   dataEntrega: string | null;
   /** Data em que o PDF é gerado, "aaaa-mm-dd". */
   dataEmissao: string;
@@ -30,10 +48,39 @@ export function escaparHtml(texto: string): string {
     .replace(/'/g, '&#39;');
 }
 
-const COR = '#A63D6B';
+/** Tira o endereço do site e o "@" do início, para aceitar "@nome", "nome" ou o link do perfil. */
+function utilizador(texto: string, dominio: string): string {
+  return texto
+    .trim()
+    .replace(new RegExp(`^(https?://)?(www\\.|m\\.)?${dominio.replace('.', '\\.')}/`, 'i'), '')
+    .replace(/[/?#].*$/, '')
+    .replace(/^@+/, '');
+}
+
+/**
+ * Contactos prontos a mostrar, pela ordem do rodapé. As redes sociais levam o nome da rede,
+ * porque "@nome" sozinho não diz onde procurar.
+ */
+export function linhasContactos(c: ContactosNegocio): string[] {
+  const linhas: string[] = [];
+  if (c.telefone.trim()) linhas.push(c.telefone.trim());
+  if (c.email.trim()) linhas.push(c.email.trim());
+  const instagram = utilizador(c.instagram, 'instagram.com');
+  if (instagram) linhas.push(`Instagram @${instagram}`);
+  const facebook = utilizador(c.facebook, 'facebook.com');
+  if (facebook) linhas.push(`Facebook ${facebook}`);
+  const tiktok = utilizador(c.tiktok, 'tiktok.com');
+  if (tiktok) linhas.push(`TikTok @${tiktok}`);
+  const site = c.site.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+  if (site) linhas.push(site);
+  return linhas;
+}
 
 export function htmlOrcamento(d: DadosPdf): string {
   const e = escaparHtml;
+  const cor = corPdf(d.cor);
+  const nome = d.nomeNegocio.trim();
+  const contactos = linhasContactos(d.contactos);
   const linhasBolos = d.bolos
     .map(
       (b, i) =>
@@ -42,7 +89,7 @@ export function htmlOrcamento(d: DadosPdf): string {
     .join('\n');
 
   const dados: string[] = [];
-  dados.push(`<div><span class="rotulo">Número</span> ${e(d.numero)}</div>`);
+  dados.push(`<div><span class="rotulo">Referência</span> ${e(d.referencia)}</div>`);
   if (d.dataEntrega) dados.push(`<div><span class="rotulo">Entrega</span> ${e(formatarData(d.dataEntrega))}</div>`);
   dados.push(`<div><span class="rotulo">Data</span> ${e(formatarData(d.dataEmissao))}</div>`);
 
@@ -54,23 +101,26 @@ export function htmlOrcamento(d: DadosPdf): string {
 <style>
   @page { size: A4; margin: 18mm 16mm; }
   * { box-sizing: border-box; }
-  body { font-family: sans-serif; color: #2B151C; font-size: 12pt; margin: 0; }
-  header { text-align: center; margin-bottom: 8mm; }
-  header img { width: 45mm; height: 45mm; object-fit: contain; }
-  h1 { color: ${COR}; font-size: 20pt; font-weight: normal; margin: 4mm 0 6mm; text-align: center; letter-spacing: 1px; }
+  body { font-family: sans-serif; color: ${cor.texto}; font-size: 12pt; margin: 0; }
+  header { text-align: center; margin: 4mm 0 2mm; }
+  .marca { color: ${cor.principal}; font-family: serif; font-size: 26pt; line-height: 1.2; }
+  h1 { color: ${cor.principal}; font-size: 20pt; font-weight: normal; margin: 4mm 0 6mm; text-align: center; letter-spacing: 1px; }
   .dados { margin-bottom: 8mm; line-height: 1.7; }
-  .rotulo { display: inline-block; width: 22mm; color: #74565F; }
+  .rotulo { display: inline-block; width: 28mm; color: ${cor.secundaria}; }
   table { width: 100%; border-collapse: collapse; }
-  th { text-align: left; font-weight: normal; color: #74565F; border-bottom: 1px solid #F2DDE1; padding: 2mm 0; }
-  td { padding: 3mm 0; border-bottom: 1px solid #F2DDE1; }
+  th { text-align: left; font-weight: normal; color: ${cor.secundaria}; border-bottom: 1px solid ${cor.linhas}; padding: 2mm 0; }
+  td { padding: 3mm 0; border-bottom: 1px solid ${cor.linhas}; }
   tr { page-break-inside: avoid; break-inside: avoid; }
   .valor { text-align: right; white-space: nowrap; padding-left: 6mm; }
-  tr.total td { border-bottom: none; border-top: 2px solid ${COR}; font-size: 15pt; font-weight: bold; color: ${COR}; padding-top: 4mm; }
-  footer { margin-top: 14mm; text-align: center; color: #74565F; font-size: 10pt; font-style: italic; }
+  tr.total td { border-bottom: none; border-top: 2px solid ${cor.principal}; font-size: 15pt; font-weight: bold; color: ${cor.principal}; padding-top: 4mm; }
+  footer { margin-top: 14mm; text-align: center; color: ${cor.secundaria}; font-size: 10pt; page-break-inside: avoid; break-inside: avoid; }
+  .contactos { margin-bottom: 3mm; line-height: 1.6; }
+  .contacto { white-space: nowrap; }
+  .aviso { font-style: italic; }
 </style>
 </head>
 <body>
-${d.logotipo ? `<header><img src="${d.logotipo}" alt=""></header>` : ''}
+${nome ? `<header><div class="marca">${e(nome)}</div></header>` : ''}
 <h1>Orçamento</h1>
 <div class="dados">
 ${dados.join('\n')}
@@ -82,18 +132,20 @@ ${linhasBolos}
 <tr class="total"><td>Total</td><td class="valor">${e(formatarEuroInteiro(d.calculo.totalCent))}</td></tr>
 </tbody>
 </table>
-<footer>Orçamento — não serve de fatura.</footer>
+<footer>
+${contactos.length ? `<div class="contactos">${contactos.map((c) => `<span class="contacto">${e(c)}</span>`).join(' &nbsp;·&nbsp; ')}</div>\n` : ''}<div class="aviso">Orçamento — não serve de fatura.</div>
+</footer>
 </body>
 </html>`;
 }
 
-/** Nome do ficheiro PDF: "Orcamento-2026-014-Ana-Silva.pdf" (sem acentos nem espaços). */
-export function nomeFicheiroPdf(numero: string, cliente: string): string {
+/** Nome do ficheiro PDF: "Orcamento-2026-QJQX-Ana-Silva.pdf" (sem acentos nem espaços). */
+export function nomeFicheiroPdf(referencia: string, cliente: string): string {
   const limpo = cliente
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^A-Za-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 40);
-  return `Orcamento-${numero}${limpo ? '-' + limpo : ''}.pdf`;
+  return `Orcamento-${referencia}${limpo ? '-' + limpo : ''}.pdf`;
 }

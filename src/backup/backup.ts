@@ -13,13 +13,18 @@ import * as Sharing from 'expo-sharing';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { numerarPorAno, ultimosPorAno, type NumeroOrcamento } from '@/domain/numero';
+import { COR_PDF_POR_OMISSAO } from '@/pdf/cores';
 
 const APP_ID = 'orcamentos-bolos';
 const MAX_BACKUPS_AUTOMATICOS = 10;
 
 /** Tabelas e colunas incluídas no backup, pela ordem de inserção (respeita as chaves estrangeiras). */
 export const TABELAS: Record<string, string[]> = {
-  definicoes: ['id', 'valor_hora_cent', 'custo_indireto_pct', 'margem_pct', 'moeda', 'nome_negocio'],
+  definicoes: [
+    'id', 'valor_hora_cent', 'custo_indireto_pct', 'margem_pct', 'moeda', 'nome_negocio', 'pdf_cor',
+    'contacto_telefone', 'contacto_email', 'contacto_instagram', 'contacto_facebook', 'contacto_tiktok',
+    'contacto_site',
+  ],
   items: ['id', 'tipo', 'nome', 'unidade', 'preco_unidade_cent', 'ativo', 'atualizado_em'],
   receitas: ['id', 'nome', 'notas', 'atualizado_em'],
   receita_linhas: [
@@ -128,7 +133,23 @@ const ATUALIZAR_BACKUP: ((t: Backup['tabelas']) => void)[] = [
     t.orcamentos = numerarPorAno(orcamentos).map((o) => ({ titulo: '', ...o }));
     t.numeracao = ultimosPorAno(t.orcamentos as unknown as NumeroOrcamento[]);
   },
+  // v3 → v4: cor e contactos do PDF (mesma regra da migração)
+  (t) => {
+    const pdf_cor = corInicialPdf((t.orcamentos ?? []).length > 0);
+    t.definicoes = (t.definicoes ?? []).map((d) => ({
+      contacto_telefone: '', contacto_email: '', contacto_instagram: '', contacto_facebook: '',
+      contacto_tiktok: '', contacto_site: '', pdf_cor, ...d,
+    }));
+  },
 ];
+
+/**
+ * Cor do PDF ao chegar à v4: quem já tinha orçamentos mantém a framboesa (a cor do PDF até
+ * à versão 0.2); uma base sem orçamentos fica com a cor por omissão. Igual à migração v4.
+ */
+export function corInicialPdf(temOrcamentos: boolean): string {
+  return temOrcamentos ? 'framboesa' : COR_PDF_POR_OMISSAO;
+}
 
 /** Valida a estrutura de um backup. Lança erro com mensagem legível se não for válido. */
 export function validarBackup(dados: unknown, versaoAtual: number): Backup {

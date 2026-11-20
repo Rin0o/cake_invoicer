@@ -3,8 +3,8 @@ import type { OrcamentoCalculado } from '@/domain/pricing';
 
 export interface DadosResumo {
   nomeNegocio: string;
-  /** Número público do orçamento ("2026-014"). */
-  numero: string;
+  /** Referência do orçamento para o cliente ("2026-QJQX"), ver `formatarReferencia`. */
+  referencia: string;
   dataEntrega: string | null;
   bolos: { nome: string }[];
   calculo: OrcamentoCalculado;
@@ -13,12 +13,12 @@ export interface DadosResumo {
 /**
  * Resumo em texto para enviar ao cliente (WhatsApp, SMS, email).
  * Mostra só os preços finais de cada bolo e o total, sem o detalhe de ingredientes.
- * Inclui o número do orçamento; não inclui o nome do cliente, o título do pedido nem as notas
- * internas.
+ * Inclui a referência do orçamento (não o número interno, que revelaria quantos orçamentos há);
+ * não inclui o nome do cliente, o título do pedido nem as notas internas.
  */
 export function resumoTexto(d: DadosResumo): string {
   const linhas: string[] = [];
-  const titulo = `Orçamento nº ${d.numero}`;
+  const titulo = `Orçamento ref. ${d.referencia}`;
   linhas.push(d.nomeNegocio ? `*${titulo} — ${d.nomeNegocio}*` : `*${titulo}*`);
   linhas.push('');
   if (d.dataEntrega) {

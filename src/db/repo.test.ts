@@ -4,6 +4,7 @@ import { migrar, MIGRATIONS, VERSAO_SCHEMA } from '@/db/migrations';
 import * as repo from '@/db/repo';
 import { abrirBaseDeTeste } from '@/db/testDb';
 import { formatarNumero } from '@/domain/numero';
+import { formatarReferencia } from '@/domain/referencia';
 import { paraUnidadeItem } from '@/domain/units';
 
 jest.mock('expo-file-system', () => ({}));
@@ -31,6 +32,32 @@ describe('migrations', () => {
     const d = await repo.obterDefinicoes(db);
     expect(d.valor_hora_cent).toBe(1000);
     expect(d.margem_pct).toBe(30);
+    // uma base nova fica com a cor por omissão e sem contactos
+    expect(d.pdf_cor).toBe('marinho');
+    expect(d.contacto_telefone).toBe('');
+    expect(d.contacto_instagram).toBe('');
+  });
+
+  it('v4: quem já tem orçamentos fica com a cor que o PDF tinha (framboesa)', async () => {
+    const espiao = jest.spyOn(backupModulo, 'guardarBackupAutomatico').mockResolvedValue();
+    const comOrcamentos = abrirBaseDeTeste();
+    const semOrcamentos = abrirBaseDeTeste();
+    for (const db of [comOrcamentos, semOrcamentos]) {
+      for (let v = 0; v < 3; v++) await db.execAsync(MIGRATIONS[v]);
+      await db.execAsync('PRAGMA user_version = 3');
+    }
+    await comOrcamentos.execAsync(
+      `INSERT INTO orcamentos (valor_hora_cent, indireto_pct, margem_pct, criado_em, atualizado_em,
+         numero_ano, numero_seq)
+       VALUES (1000, 10, 30, '2026-11-01', '2026-11-01', 2026, 1)`,
+    );
+
+    await migrar(comOrcamentos);
+    await migrar(semOrcamentos);
+
+    expect((await repo.obterDefinicoes(comOrcamentos)).pdf_cor).toBe('framboesa');
+    expect((await repo.obterDefinicoes(semOrcamentos)).pdf_cor).toBe('marinho');
+    espiao.mockRestore();
   });
 
   it('não volta a migrar uma base já atualizada', async () => {
@@ -114,12 +141,23 @@ describe('orçamentos', () => {
   it('mudar as definições não altera orçamentos existentes', async () => {
     const db = await novaBase();
     const oid = await repo.criarOrcamento(db);
-    await repo.guardarDefinicoes(db, {
-      valor_hora_cent: 2000, custo_indireto_pct: 5, margem_pct: 10, nome_negocio: '',
-    });
+    const { moeda: _moeda, ...atuais } = await repo.obterDefinicoes(db);
+    await repo.guardarDefinicoes(db, { ...atuais, valor_hora_cent: 2000, custo_indireto_pct: 5, margem_pct: 10 });
     const o = (await repo.obterOrcamento(db, oid))!;
     expect(o.valor_hora_cent).toBe(1000);
     expect(o.margem_pct).toBe(30);
+  });
+
+  it('guarda o nome, a cor e os contactos do PDF', async () => {
+    const db = await novaBase();
+    const novas: repo.DefinicoesEditaveis = {
+      valor_hora_cent: 1500, custo_indireto_pct: 12, margem_pct: 25, nome_negocio: 'Doces da Avó',
+      pdf_cor: 'lilas', contacto_telefone: '912 345 678', contacto_email: 'ola@doces.pt',
+      contacto_instagram: '@docesdaavo', contacto_facebook: 'Doces da Avó', contacto_tiktok: '@doces',
+      contacto_site: 'doces.pt',
+    };
+    await repo.guardarDefinicoes(db, novas);
+    expect(await repo.obterDefinicoes(db)).toEqual({ id: 1, moeda: 'EUR', ...novas });
   });
 
   it('vários bolos, apagar bolo e apagar orçamento em cascata', async () => {
@@ -161,6 +199,19 @@ describe('orçamentos', () => {
     expect(await ids('batiz')).toEqual([b]);
     expect(await ids('2026-001')).toEqual([a]);
     expect(await ids(' 002 ')).toEqual([b]);
+  });
+
+  it('pesquisa pela referência do cliente, com ou sem ano', async () => {
+    const db = await novaBase();
+    const a = await repo.criarOrcamento(db, { hoje: '2026-11-19' }); // 2026-001 = 2026-QJQX
+    const b = await repo.criarOrcamento(db, { hoje: '2026-11-19' }); // 2026-002 = 2026-95G5
+    const c = await repo.criarOrcamento(db, { hoje: '2027-01-02' }); // 2027-001 = 2027-VTJ9
+    const ids = async (pesquisa: string) => (await repo.listarOrcamentos(db, { pesquisa })).map((o) => o.id);
+    expect(formatarReferencia((await repo.obterOrcamento(db, b))!)).toBe('2026-95G5');
+    expect(await ids('2026-QJQX')).toEqual([a]);
+    expect(await ids('95g5')).toEqual([b]);
+    expect(await ids('VTJ9')).toEqual([c]);
+    expect(await ids('2026-VTJ9')).toEqual([]); // é a referência de 2027
   });
 
   it('numera por ano, sem reutilizar números apagados', async () => {
@@ -551,8 +602,42 @@ describe('backup', () => {
 
     const db = await novaBase();
     await restaurarBackup(db, backup);
-    expect((await repo.obterDefinicoes(db)).valor_hora_cent).toBe(1200);
+    const d = await repo.obterDefinicoes(db);
+    expect(d.valor_hora_cent).toBe(1200);
+    expect(d.pdf_cor).toBe('marinho'); // sem orçamentos no backup
+    expect(d.contacto_site).toBe('');
     expect((await repo.listarItens(db)).map((i) => i.nome)).toEqual(['Farinha']);
+  });
+
+  it('um backup v3 com orçamentos fica com a framboesa e sem contactos', async () => {
+    const origem = await novaBase();
+    await repo.criarOrcamento(origem);
+    const v3 = JSON.parse(JSON.stringify(await gerarBackup(origem))) as backupModulo.Backup;
+    // simula um backup da versão 0.2: sem as colunas da v4
+    v3.versao_schema = 3;
+    v3.tabelas.definicoes = v3.tabelas.definicoes.map((linha) =>
+      Object.fromEntries(Object.entries(linha).filter(([c]) => c !== 'pdf_cor' && !c.startsWith('contacto_'))),
+    );
+
+    const db = await novaBase();
+    await restaurarBackup(db, validarBackup(v3, VERSAO_SCHEMA));
+    const d = await repo.obterDefinicoes(db);
+    expect(d.pdf_cor).toBe('framboesa');
+    expect(d.contacto_telefone).toBe('');
+    expect(await repo.listarOrcamentos(db)).toHaveLength(1);
+  });
+
+  it('o backup inclui a cor e os contactos', async () => {
+    const origem = await novaBase();
+    const { moeda: _moeda, ...atuais } = await repo.obterDefinicoes(origem);
+    await repo.guardarDefinicoes(origem, { ...atuais, pdf_cor: 'coral', contacto_instagram: '@doces' });
+    const backup = validarBackup(JSON.parse(JSON.stringify(await gerarBackup(origem))), VERSAO_SCHEMA);
+
+    const destino = await novaBase();
+    await restaurarBackup(destino, backup);
+    const d = await repo.obterDefinicoes(destino);
+    expect(d.pdf_cor).toBe('coral');
+    expect(d.contacto_instagram).toBe('@doces');
   });
 
   it('recusa ficheiros que não são backups ou de versões mais recentes', () => {

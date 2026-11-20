@@ -6,8 +6,10 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { EstadoOrcamento } from '@/domain/estados';
 import { hojeIso } from '@/domain/format';
+import type { NumeroOrcamento } from '@/domain/numero';
 import { calcularOrcamento, type ParametrosOrcamento } from '@/domain/pricing';
 import { escalarLinhas } from '@/domain/receitas';
+import { lerPesquisaReferencia, numeroDaReferencia } from '@/domain/referencia';
 import type { UnidadeEntrada, UnidadeItem } from '@/domain/units';
 
 export type { EstadoOrcamento };
@@ -29,11 +31,28 @@ export interface Definicoes {
   margem_pct: number;
   moeda: string;
   nome_negocio: string;
+  /** Id da cor do PDF, ver `CORES_PDF` em src/pdf/cores.ts. */
+  pdf_cor: string;
+  contacto_telefone: string;
+  contacto_email: string;
+  contacto_instagram: string;
+  contacto_facebook: string;
+  contacto_tiktok: string;
+  contacto_site: string;
 }
+
+/** O que se edita no ecrã Definições (tudo menos a moeda). */
+export type DefinicoesEditaveis = Omit<Definicoes, 'moeda'>;
+
+const CAMPOS_EDITAVEIS = [
+  'valor_hora_cent', 'custo_indireto_pct', 'margem_pct', 'nome_negocio', 'pdf_cor',
+  'contacto_telefone', 'contacto_email', 'contacto_instagram', 'contacto_facebook',
+  'contacto_tiktok', 'contacto_site',
+] as const satisfies readonly (keyof DefinicoesEditaveis)[];
 
 export interface Orcamento {
   id: number;
-  /** Número público, ver `formatarNumero`. */
+  /** Número interno, ver `formatarNumero`. O cliente vê a referência (`formatarReferencia`). */
   numero_ano: number;
   numero_seq: number;
   cliente: string;
@@ -183,14 +202,10 @@ export async function obterDefinicoes(db: SQLiteDatabase): Promise<Definicoes> {
   return d;
 }
 
-export async function guardarDefinicoes(
-  db: SQLiteDatabase,
-  d: Pick<Definicoes, 'valor_hora_cent' | 'custo_indireto_pct' | 'margem_pct' | 'nome_negocio'>,
-) {
+export async function guardarDefinicoes(db: SQLiteDatabase, d: DefinicoesEditaveis) {
   await db.runAsync(
-    `UPDATE definicoes SET valor_hora_cent = ?, custo_indireto_pct = ?, margem_pct = ?,
-     nome_negocio = ? WHERE id = 1`,
-    d.valor_hora_cent, d.custo_indireto_pct, d.margem_pct, d.nome_negocio,
+    `UPDATE definicoes SET ${CAMPOS_EDITAVEIS.map((c) => `${c} = ?`).join(', ')} WHERE id = 1`,
+    CAMPOS_EDITAVEIS.map((c) => d[c]),
   );
 }
 
@@ -204,17 +219,36 @@ function padraoLike(texto: string) {
 const SQL_NUMERO = `(o.numero_ano || '-' || printf('%03d', o.numero_seq))`;
 
 /**
- * Histórico de orçamentos, com pesquisa por cliente, título ou número, e filtro por estado.
- * Ordem: entregas de hoje em diante (a mais próxima primeiro), depois as passadas
+ * Números internos que correspondem à pesquisa, se ela tiver a forma de uma referência do
+ * cliente. Sem ano ("QJQX"), experimenta cada ano que tem orçamentos.
+ */
+async function numerosDaPesquisa(db: SQLiteDatabase, pesquisa: string): Promise<NumeroOrcamento[]> {
+  const ref = lerPesquisaReferencia(pesquisa);
+  if (!ref) return [];
+  const anos =
+    ref.ano !== null
+      ? [ref.ano]
+      : (await db.getAllAsync<{ ano: number }>('SELECT DISTINCT numero_ano AS ano FROM orcamentos')).map((r) => r.ano);
+  return anos.map((ano) => numeroDaReferencia(ref.codigo, ano)).filter((n): n is NumeroOrcamento => n !== null);
+}
+
+/**
+ * Histórico de orçamentos, com pesquisa por cliente, título, número ou referência, e filtro por
+ * estado. Ordem: entregas de hoje em diante (a mais próxima primeiro), depois as passadas
  * (a mais recente primeiro), e no fim os orçamentos sem data de entrega.
  */
-export function listarOrcamentos(
+export async function listarOrcamentos(
   db: SQLiteDatabase,
   opcoes: { pesquisa?: string; estado?: EstadoOrcamento | null; hoje?: string } = {},
 ) {
   const hoje = opcoes.hoje ?? hojeIso();
-  const padrao = padraoLike((opcoes.pesquisa ?? '').trim());
+  const pesquisa = (opcoes.pesquisa ?? '').trim();
+  const padrao = padraoLike(pesquisa);
   const args: (string | number)[] = [padrao, padrao, padrao];
+  // A referência do cliente ("2026-QJQX" ou "QJQX") não está na base: converte-se no número.
+  const numeros = await numerosDaPesquisa(db, pesquisa);
+  const filtroReferencia = numeros.map(() => ' OR (o.numero_ano = ? AND o.numero_seq = ?)').join('');
+  for (const n of numeros) args.push(n.numero_ano, n.numero_seq);
   let filtroEstado = '';
   if (opcoes.estado) {
     filtroEstado = 'AND o.estado = ?';
@@ -224,7 +258,7 @@ export function listarOrcamentos(
   return db.getAllAsync<ResumoOrcamento>(
     `SELECT o.*, (SELECT COUNT(*) FROM orcamento_bolos b WHERE b.orcamento_id = o.id) AS n_bolos
      FROM orcamentos o
-     WHERE (o.cliente LIKE ? ESCAPE '\\' OR o.titulo LIKE ? ESCAPE '\\' OR ${SQL_NUMERO} LIKE ? ESCAPE '\\')
+     WHERE (o.cliente LIKE ? ESCAPE '\\' OR o.titulo LIKE ? ESCAPE '\\' OR ${SQL_NUMERO} LIKE ? ESCAPE '\\'${filtroReferencia})
        ${filtroEstado}
      ORDER BY
        CASE WHEN o.data_entrega IS NULL THEN 2 WHEN o.data_entrega >= ? THEN 0 ELSE 1 END,

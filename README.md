@@ -9,10 +9,12 @@ no telemóvel.
 - Receitas reutilizáveis, aplicadas a um bolo com escala (ex.: 1,5×).
 - Orçamentos com vários bolos: quantidade usada de cada item, tempo de trabalho, custos indiretos e margem.
 - Preço final de cada bolo editável, com opção de repor o valor calculado.
-- Cada orçamento tem um número (`2026-014`) e um título interno do pedido; o cliente pode vir dos
+- Cada orçamento tem um número interno (`2026-014`), uma referência para o cliente que não revela
+  quantos orçamentos há (`2026-QJQX`) e um título interno do pedido; o cliente pode vir dos
   contactos do telemóvel e a data de entrega escolhe-se no calendário.
 - Estados (rascunho, enviado, aceite, recusado, entregue) e histórico com pesquisa e filtro.
-- Envio ao cliente em PDF (com logótipo) ou em texto, por WhatsApp, SMS ou email.
+- Envio ao cliente em PDF (com o nome, a cor e os contactos do negócio) ou em texto, por WhatsApp,
+  SMS ou email.
 - Backup e restauro em JSON.
 
 Planos futuros (rever o PDF, opções de branding…) na

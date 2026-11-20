@@ -1,8 +1,8 @@
 import { calcularOrcamento } from '@/domain/pricing';
-import { LOGOTIPO_DATA_URI } from '@/pdf/logotipo';
-import { escaparHtml, htmlOrcamento, nomeFicheiroPdf, type DadosPdf } from '@/pdf/template';
+import { escaparHtml, htmlOrcamento, linhasContactos, nomeFicheiroPdf, type ContactosNegocio, type DadosPdf } from '@/pdf/template';
 
 const p = { valorHoraCent: 0, indiretoPct: 0, margemPct: 0 };
+const SEM_CONTACTOS: ContactosNegocio = { telefone: '', email: '', instagram: '', facebook: '', tiktok: '', site: '' };
 
 function dados(extra: Partial<DadosPdf> = {}): DadosPdf {
   const calculo = calcularOrcamento(
@@ -13,8 +13,10 @@ function dados(extra: Partial<DadosPdf> = {}): DadosPdf {
     p,
   );
   return {
-    logotipo: 'data:image/png;base64,AAAA',
-    numero: '2027-014',
+    nomeNegocio: 'Doces da Avó',
+    cor: 'lilas',
+    contactos: { ...SEM_CONTACTOS, telefone: '912 345 678', instagram: '@docesdaavo' },
+    referencia: '2027-QJQX',
     dataEntrega: '2027-03-05',
     dataEmissao: '2027-02-20',
     bolos: [{ nome: 'Bolo de chocolate' }, { nome: 'Cupcakes' }],
@@ -24,11 +26,14 @@ function dados(extra: Partial<DadosPdf> = {}): DadosPdf {
 }
 
 describe('htmlOrcamento', () => {
-  it('mostra logótipo, datas, bolos com preço final e total, sem o cliente', () => {
+  it('mostra o nome do negócio, datas, bolos com preço final, total e contactos, sem o cliente', () => {
     const html = htmlOrcamento(dados());
-    expect(html).toContain('<img src="data:image/png;base64,AAAA"');
+    expect(html).toContain('<div class="marca">Doces da Avó</div>');
+    expect(html).not.toContain('<img');
     expect(html).not.toContain('Cliente');
-    expect(html).toMatch(/Número<\/span> 2027-014/);
+    expect(html).toContain('<span class="contacto">912 345 678</span> &nbsp;·&nbsp; <span class="contacto">Instagram @docesdaavo</span>');
+    expect(html).toMatch(/Referência<\/span> 2027-QJQX/);
+    expect(html).not.toContain('Número');
     expect(html).toContain('05/03/2027');
     expect(html).toContain('20/02/2027');
     expect(html).toMatch(/Bolo de chocolate<\/td><td class="valor">45 €/);
@@ -42,14 +47,34 @@ describe('htmlOrcamento', () => {
   });
 
   it('omite o que não existe', () => {
-    const html = htmlOrcamento(dados({ logotipo: null, dataEntrega: null }));
-    expect(html).not.toContain('<img');
+    const html = htmlOrcamento(dados({ nomeNegocio: '  ', contactos: SEM_CONTACTOS, dataEntrega: null }));
     expect(html).not.toContain('<header>');
+    expect(html).not.toContain('class="contactos"');
     expect(html).not.toContain('Entrega');
+    expect(html).toContain('<h1>Orçamento</h1>');
+    expect(html).toContain('não serve de fatura');
+  });
+
+  it('usa as quatro cores da opção escolhida', () => {
+    const html = htmlOrcamento(dados({ cor: 'salva' }));
+    for (const hex of ['#4A6E50', '#1D251F', '#5C665E', '#E5EBE6']) expect(html).toContain(hex);
+    expect(html).not.toContain('#A63D6B');
+  });
+
+  it('uma cor desconhecida usa a cor por omissão', () => {
+    expect(htmlOrcamento(dados({ cor: 'nao-existe' }))).toContain('#24406E');
   });
 
   it('escapa texto escrito por quem usa a app', () => {
-    const html = htmlOrcamento(dados({ bolos: [{ nome: '<script>x</script>' }, { nome: 'A & B "1"' }] }));
+    const html = htmlOrcamento(
+      dados({
+        nomeNegocio: 'Bolos <b>&</b>',
+        contactos: { ...SEM_CONTACTOS, site: '<i>x</i>' },
+        bolos: [{ nome: '<script>x</script>' }, { nome: 'A & B "1"' }],
+      }),
+    );
+    expect(html).toContain('Bolos &lt;b&gt;&amp;&lt;/b&gt;');
+    expect(html).toContain('&lt;i&gt;x&lt;/i&gt;');
     expect(html).not.toContain('<script>');
     expect(html).toContain('&lt;script&gt;');
     expect(html).toContain('A &amp; B &quot;1&quot;');
@@ -64,21 +89,52 @@ describe('escaparHtml', () => {
 
 describe('nomeFicheiroPdf', () => {
   it('número e cliente, sem acentos nem espaços', () => {
-    expect(nomeFicheiroPdf('2027-014', 'Ana Conceição')).toBe('Orcamento-2027-014-Ana-Conceicao.pdf');
-    expect(nomeFicheiroPdf('2027-014', '  / Rui! ')).toBe('Orcamento-2027-014-Rui.pdf');
+    expect(nomeFicheiroPdf('2027-QJQX', 'Ana Conceição')).toBe('Orcamento-2027-QJQX-Ana-Conceicao.pdf');
+    expect(nomeFicheiroPdf('2027-QJQX', '  / Rui! ')).toBe('Orcamento-2027-QJQX-Rui.pdf');
   });
 
   it('sem cliente', () => {
-    expect(nomeFicheiroPdf('2027-014', '')).toBe('Orcamento-2027-014.pdf');
+    expect(nomeFicheiroPdf('2027-QJQX', '')).toBe('Orcamento-2027-QJQX.pdf');
   });
 });
 
-describe('logótipo embebido', () => {
-  it('é um JPEG válido em base64', () => {
-    const [cabecalho, b64] = LOGOTIPO_DATA_URI.split(',');
-    expect(cabecalho).toBe('data:image/jpeg;base64');
-    expect(b64).toMatch(/^[A-Za-z0-9+/]+=*$/);
-    // um JPEG começa por FF D8 FF, que em base64 dá "/9j/"
-    expect(b64.startsWith('/9j/')).toBe(true);
+describe('linhasContactos', () => {
+  it('fica vazio sem contactos', () => {
+    expect(linhasContactos(SEM_CONTACTOS)).toEqual([]);
+  });
+
+  it('mostra todos pela ordem do rodapé, com o nome da rede social', () => {
+    expect(
+      linhasContactos({
+        telefone: ' 912 345 678 ',
+        email: 'ola@doces.pt',
+        instagram: 'docesdaavo',
+        facebook: 'Doces da Avó',
+        tiktok: '@docesdaavo',
+        site: 'https://www.doces.pt/',
+      }),
+    ).toEqual([
+      '912 345 678',
+      'ola@doces.pt',
+      'Instagram @docesdaavo',
+      'Facebook Doces da Avó',
+      'TikTok @docesdaavo',
+      'www.doces.pt',
+    ]);
+  });
+
+  it('aceita o link do perfil em vez do nome', () => {
+    expect(
+      linhasContactos({
+        ...SEM_CONTACTOS,
+        instagram: 'https://www.instagram.com/docesdaavo/?hl=pt',
+        facebook: 'facebook.com/docesdaavo',
+        tiktok: 'https://www.tiktok.com/@docesdaavo',
+      }),
+    ).toEqual(['Instagram @docesdaavo', 'Facebook docesdaavo', 'TikTok @docesdaavo']);
+  });
+
+  it('ignora um "@" sozinho', () => {
+    expect(linhasContactos({ ...SEM_CONTACTOS, instagram: ' @ ' })).toEqual([]);
   });
 });

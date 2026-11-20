@@ -40,6 +40,9 @@ Um orçamento antigo tem de dar sempre o mesmo valor. Por isso:
 - Ao criar o orçamento, copiam-se `valor_hora_cent`, `indireto_pct` e `margem_pct` das definições.
 - `orcamentos.total_cent` e `total_calc_cent` são caches para a lista e a pesquisa, recalculados
   por `recalcularTotais` depois de cada escrita em `repo.ts`. A fonte de verdade são as linhas.
+- **Exceção:** o nome do negócio, a cor e os contactos do PDF não são copiados para o orçamento.
+  São a apresentação do negócio, não fazem parte do preço: quem muda de contacto quer o novo também
+  nos PDF de orçamentos antigos.
 - Preço editado à mão: `orcamento_bolos.preco_final_cent` (`null` = usa o calculado). Guarda-se também
   `preco_calc_no_ajuste_cent`, o calculado no momento do ajuste, para avisar se mudar depois.
 
@@ -64,12 +67,11 @@ Um orçamento antigo tem de dar sempre o mesmo valor. Por isso:
   o diálogo é o mesmo no editor e no toque longo da lista.
 - PDF: [src/pdf/template.ts](../src/pdf/template.ts) gera o HTML (puro, testado, escapa o texto);
   [src/pdf/pdf.ts](../src/pdf/pdf.ts) chama `expo-print`, dá ao ficheiro um nome legível e abre a
-  folha de partilha. O logótipo está embebido em base64 em
-  [src/pdf/logotipo.ts](../src/pdf/logotipo.ts), gerado a partir de `assets/diana_cakes_logo.png`.
-  Não se lê o ficheiro em runtime porque, no APK de release, a imagem da app não tem caminho de
-  ficheiro legível (o PDF saía sem logótipo). Para mudar o logótipo, substituir o PNG (quadrado) e
-  correr `powershell -File scripts/gerar-logotipo.ps1`.
-  Rever o PDF e tornar o branding configurável está nos planos futuros (especificação, fase 3).
+  folha de partilha. Não há logótipo: o topo mostra o nome do negócio. A cor vem de
+  [src/pdf/cores.ts](../src/pdf/cores.ts): oito conjuntos de quatro cores (principal, texto,
+  secundária, linhas), testados para contraste ≥ 4,5:1 sobre branco. Na base guarda-se só o id
+  (`definicoes.pdf_cor`); um id desconhecido usa a cor por omissão. Os contactos do negócio vão para
+  o rodapé, formatados por `linhasContactos` (aceita "@nome", "nome" ou o link do perfil).
 
 ## Número, pedido e dados do cliente
 
@@ -77,7 +79,13 @@ Um orçamento antigo tem de dar sempre o mesmo valor. Por isso:
   maior entre `numeracao.ultimo` e o maior `numero_seq` do ano, mais 1, por isso apagar um
   orçamento ou importar um backup nunca faz repetir números. Formato em
   [src/domain/numero.ts](../src/domain/numero.ts) (`formatarNumero`); `numerarPorAno` aplica a regra
-  da migração v3 aos backups antigos. O número é público (PDF e texto).
+  da migração v3 aos backups antigos. O número é interno.
+- **Referência para o cliente** ([src/domain/referencia.ts](../src/domain/referencia.ts)): o PDF, o
+  texto e o nome do ficheiro levam `formatarReferencia` ("2026-QJQX") em vez do número, para o
+  cliente não deduzir quantos orçamentos há. É uma permutação do número (rede de Feistel com o ano
+  na chave), sem coluna na base: cada número tem um só código e vice-versa. A pesquisa converte a
+  referência no número (`numeroDaReferencia`). **Nunca mudar a fórmula**: as referências já
+  enviadas deixariam de bater certo (um teste fixa valores conhecidos).
 - **Pedido** (`orcamentos.titulo`): só interno; `DadosPdf` e `DadosResumo` não o recebem.
 - **Contactos** ([src/ui/EscolherContacto.tsx](../src/ui/EscolherContacto.tsx), `expo-contacts`):
   `Contact.presentPicker()` só devolve o id, por isso é preciso `READ_CONTACTS` para ler os números.
