@@ -26,9 +26,9 @@ App Android nativa, sem backend, para calcular orçamentos de bolos a partir de 
 | RF09 | Ajuste dos valores finais | Preço final de cada bolo editável e guardado; mostra a diferença face ao calculado, avisa se ficar abaixo do custo e permite repor o valor calculado |
 | RF10 | Exportar | PDF do orçamento para o cliente: nome do negócio no topo (se preenchido), referência do orçamento (não o número interno), data, data de entrega, cada bolo com o preço final, total, contactos do negócio no fundo (telefone, email, Instagram, Facebook, TikTok, site; só os preenchidos) e "Orçamento — não serve de fatura". Cor escolhida numa paleta de 8 opções nas Definições. Sem logótipo, sem nome do cliente, sem título do pedido, sem notas internas nem detalhe de ingredientes. O nome, a cor e os contactos são sempre os atuais, também em orçamentos antigos. Ficheiro `Orcamento-<referência>-<cliente>.pdf` |
 | RF11 | Partilhar | Folha de partilha nativa (WhatsApp, email, Drive) com o PDF ou um resumo em texto. O resumo em texto tem título (com a referência e o nome do negócio), entrega, bolos e total, sem o nome do cliente, sem o título do pedido e sem a nota "não serve de fatura" (que fica só no PDF) |
-| RF12 | Histórico | Lista de orçamentos com cliente, título do pedido, estado, entrega e número; filtro por estado e pesquisa por cliente, título, número ou referência. Ordem: entregas de hoje em diante (a mais próxima primeiro), depois as passadas (a mais recente primeiro), e no fim os orçamentos sem data |
+| RF12 | Histórico | Lista de orçamentos com cliente, título do pedido, estado, entrega e número, separada em três listas: **Abertos** (rascunho, enviado, aceite), **Entregues** e **Recusados**, cada uma com o número de orçamentos. Nos Abertos há filtro por estado. A pesquisa por cliente, título, número ou referência procura nas três listas. Ordem nos Abertos: entregas de hoje em diante (a mais próxima primeiro), depois as passadas (a mais recente primeiro), e no fim os orçamentos sem data. Nos Entregues e Recusados: do mais recente para o mais antigo (pela entrega ou, sem ela, pela criação) |
 | RF13 | Backup | Exportar e importar toda a base em JSON. Backups de versões anteriores da app continuam a importar |
-| RF14 | Estados | Rascunho, enviado, aceite, recusado, entregue; mudam-se à mão. Partilhar um rascunho (PDF ou texto) passa-o a enviado. O orçamento é editável em qualquer estado |
+| RF14 | Estados | Rascunho, enviado, aceite, recusado, entregue; mudam-se à mão. Partilhar um rascunho (PDF ou texto) passa-o a enviado. Um recusado reabre-se (volta a rascunho) para ajustar e reenviar. O orçamento é editável em qualquer estado |
 | RF15 | Receitas | Nome, notas e linhas de ingredientes/materiais do catálogo (com quantidade) e linhas livres. Sem tempo de trabalho. Mostra o custo estimado com os preços atuais do catálogo |
 | RF16 | Receita no orçamento | Adicionar uma receita a um bolo, com escala (decimal, ex.: 1,5). As linhas são copiadas com os preços atuais e juntam-se às que o bolo já tem, para montar um bolo a partir de várias receitas (massa + recheio + cobertura) |
 
@@ -115,7 +115,7 @@ Ecrãs em `src/app/` (Expo Router), lógica e dados no resto de `src/`.
 ```
 src/
   app/
-    (tabs)/index.tsx      # histórico de orçamentos: pesquisa e filtro por estado
+    (tabs)/index.tsx      # orçamentos: abertos, entregues e recusados; pesquisa e filtro
     (tabs)/receitas.tsx   # lista de receitas
     (tabs)/catalogo.tsx   # ingredientes e materiais
     (tabs)/definicoes.tsx # valor/hora, percentagens, nome, cor e contactos do negócio, backup

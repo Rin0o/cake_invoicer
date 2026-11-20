@@ -15,7 +15,7 @@ import {
   obterOrcamento,
   type OrcamentoCompleto,
 } from '@/db/repo';
-import { estadoDepoisDePartilhar, type EstadoOrcamento } from '@/domain/estados';
+import { avisoMudancaDeGrupo, estadoDepoisDePartilhar, type EstadoOrcamento } from '@/domain/estados';
 import {
   formatarData,
   formatarDecimal,
@@ -205,7 +205,12 @@ export default function EditarOrcamento() {
   }
 
   function mudarEstado(estado: EstadoOrcamento) {
-    gestor.executar(() => guardarCampos({ estado }));
+    const anterior = o?.estado;
+    gestor.executar(async () => {
+      await guardarCampos({ estado });
+      const aviso = anterior && avisoMudancaDeGrupo(anterior, estado);
+      if (aviso) avisar(aviso);
+    });
   }
 
   /** Partilha com o cliente; um rascunho passa a "enviado". */

@@ -3,6 +3,7 @@ import { gerarBackup, restaurarBackup, TABELAS, validarBackup } from '@/backup/b
 import { migrar, MIGRATIONS, VERSAO_SCHEMA } from '@/db/migrations';
 import * as repo from '@/db/repo';
 import { abrirBaseDeTeste } from '@/db/testDb';
+import type { EstadoOrcamento } from '@/domain/estados';
 import { formatarNumero } from '@/domain/numero';
 import { formatarReferencia } from '@/domain/referencia';
 import { paraUnidadeItem } from '@/domain/units';
@@ -238,6 +239,58 @@ describe('orçamentos', () => {
     expect((await repo.listarOrcamentos(db, { estado: 'aceite' })).map((o) => o.id)).toEqual([a]);
     expect((await repo.listarOrcamentos(db, { estado: 'rascunho', pesquisa: 'ana' })).map((o) => o.id)).toEqual([b]);
     expect(await repo.listarOrcamentos(db, { estado: 'entregue' })).toHaveLength(0);
+  });
+
+  it('filtra por grupo e conta os orçamentos de cada grupo', async () => {
+    const db = await novaBase();
+    const criar = async (cliente: string, estado: EstadoOrcamento) => {
+      const id = await repo.criarOrcamento(db);
+      await repo.atualizarOrcamento(db, id, { cliente, estado });
+      return id;
+    };
+    const rascunho = await criar('Ana', 'rascunho');
+    const enviado = await criar('Bia', 'enviado');
+    const aceite = await criar('Carla', 'aceite');
+    const entregue = await criar('Ana Rita', 'entregue');
+    const recusado = await criar('Duarte', 'recusado');
+
+    const ids = async (opcoes: Parameters<typeof repo.listarOrcamentos>[1]) =>
+      (await repo.listarOrcamentos(db, opcoes)).map((o) => o.id).sort((x, y) => x - y);
+    expect(await ids({ grupo: 'abertos' })).toEqual([rascunho, enviado, aceite]);
+    expect(await ids({ grupo: 'entregues' })).toEqual([entregue]);
+    expect(await ids({ grupo: 'recusados' })).toEqual([recusado]);
+    expect(await ids({ grupo: 'abertos', estado: 'enviado' })).toEqual([enviado]);
+    expect(await ids({ grupo: 'entregues', pesquisa: 'ana' })).toEqual([entregue]);
+    // Sem grupo, a pesquisa procura em todos.
+    expect(await ids({ pesquisa: 'ana' })).toEqual([rascunho, entregue]);
+
+    expect(await repo.contarPorGrupo(db)).toEqual({ abertos: 3, entregues: 1, recusados: 1 });
+  });
+
+  it('reabrir um recusado devolve-o aos abertos', async () => {
+    const db = await novaBase();
+    const id = await repo.criarOrcamento(db);
+    await repo.atualizarOrcamento(db, id, { estado: 'recusado' });
+    expect(await repo.contarPorGrupo(db)).toEqual({ abertos: 0, entregues: 0, recusados: 1 });
+    await repo.atualizarOrcamento(db, id, { estado: 'rascunho' });
+    expect((await repo.listarOrcamentos(db, { grupo: 'abertos' })).map((o) => o.id)).toEqual([id]);
+    expect(await repo.contarPorGrupo(db)).toEqual({ abertos: 1, entregues: 0, recusados: 0 });
+  });
+
+  it('histórico: do mais recente para o mais antigo, pela entrega ou pela criação', async () => {
+    const db = await novaBase();
+    const criar = async (cliente: string, data_entrega: string | null, hoje: string) => {
+      const id = await repo.criarOrcamento(db, { hoje });
+      await repo.atualizarOrcamento(db, id, { cliente, data_entrega, estado: 'entregue' });
+      await db.runAsync('UPDATE orcamentos SET criado_em = ? WHERE id = ?', `${hoje}T10:00:00.000Z`, id);
+      return id;
+    };
+    await criar('janeiro', '2027-01-15', '2027-01-02');
+    await criar('sem data, criado em fevereiro', null, '2027-02-10');
+    await criar('março', '2027-03-20', '2027-03-01');
+    await criar('futuro', '2027-05-01', '2027-03-05');
+    const ordem = (await repo.listarOrcamentos(db, { grupo: 'entregues', hoje: '2027-04-01' })).map((o) => o.cliente);
+    expect(ordem).toEqual(['futuro', 'março', 'sem data, criado em fevereiro', 'janeiro']);
   });
 
   it('ordena: próximas entregas primeiro, depois as passadas, e sem data no fim', async () => {

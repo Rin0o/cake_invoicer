@@ -18,6 +18,12 @@ Cada versão distribuída tem também um `android.versionCode` (em `app.json`) m
 
 ### Adicionado
 
+- **Abertos, Entregues e Recusados**: a lista de orçamentos passa a mostrar só os abertos
+  (rascunho, enviado, aceite). Os entregues e os recusados ficam cada um no seu separador, do mais
+  recente para o mais antigo, e cada separador mostra quantos orçamentos tem. A pesquisa continua
+  a procurar em todos. Ao mudar de estado, uma mensagem diz para que lista foi o orçamento.
+- **Reabrir um recusado**: no orçamento recusado há um botão "Reabrir", que o volta a rascunho
+  para ajustar e reenviar.
 - **Cor do PDF**: escolher uma de oito cores nas Definições. Quem já tinha orçamentos fica com a
   cor de sempre (framboesa); uma instalação nova começa em azul-marinho.
 - **Contactos no PDF**: telefone, email, Instagram, Facebook, TikTok e site, nas Definições. Aparecem

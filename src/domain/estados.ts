@@ -29,9 +29,37 @@ const PASSOS: Record<EstadoOrcamento, PassoSeguinte[]> = {
     { estado: 'recusado', rotulo: 'Recusou', descricao: 'Cliente recusou', principal: false },
   ],
   aceite: [{ estado: 'entregue', rotulo: 'Entregue', descricao: 'Marcar como entregue', principal: true }],
-  recusado: [],
+  // Reabrir volta a rascunho: ajusta-se e, ao partilhar de novo, passa a "enviado".
+  recusado: [{ estado: 'rascunho', rotulo: 'Reabrir', descricao: 'Reabrir para ajustar e reenviar', principal: true }],
   entregue: [],
 };
+
+/** Listas do ecrã de orçamentos: os abertos e o histórico, separado em entregues e recusados. */
+export const GRUPOS = ['abertos', 'entregues', 'recusados'] as const;
+export type GrupoOrcamentos = (typeof GRUPOS)[number];
+
+export const NOME_GRUPO: Record<GrupoOrcamentos, string> = {
+  abertos: 'Abertos',
+  entregues: 'Entregues',
+  recusados: 'Recusados',
+};
+
+export const ESTADOS_DO_GRUPO: Record<GrupoOrcamentos, readonly EstadoOrcamento[]> = {
+  abertos: ['rascunho', 'enviado', 'aceite'],
+  entregues: ['entregue'],
+  recusados: ['recusado'],
+};
+
+export function grupoDoEstado(estado: EstadoOrcamento): GrupoOrcamentos {
+  return GRUPOS.find((g) => ESTADOS_DO_GRUPO[g].includes(estado))!;
+}
+
+/** Aviso a mostrar quando uma mudança de estado leva o orçamento para outra lista (ou `null`). */
+export function avisoMudancaDeGrupo(de: EstadoOrcamento, para: EstadoOrcamento): string | null {
+  const grupo = grupoDoEstado(para);
+  if (grupo === grupoDoEstado(de)) return null;
+  return grupo === 'abertos' ? 'Reaberto: está nos Abertos' : `Passou para ${NOME_GRUPO[grupo]}`;
+}
 
 /** Ações sugeridas a partir de um estado. Os outros estados escolhem-se à mão. */
 export function passosSeguintes(estado: EstadoOrcamento): PassoSeguinte[] {
