@@ -1,4 +1,5 @@
 import { calcularOrcamento } from '@/domain/pricing';
+import { LOGOTIPO_DATA_URI } from '@/pdf/logotipo';
 import { escaparHtml, htmlOrcamento, nomeFicheiroPdf, type DadosPdf } from '@/pdf/template';
 
 const p = { valorHoraCent: 0, indiretoPct: 0, margemPct: 0 };
@@ -69,5 +70,15 @@ describe('nomeFicheiroPdf', () => {
 
   it('sem cliente', () => {
     expect(nomeFicheiroPdf('2027-014', '')).toBe('Orcamento-2027-014.pdf');
+  });
+});
+
+describe('logótipo embebido', () => {
+  it('é um JPEG válido em base64', () => {
+    const [cabecalho, b64] = LOGOTIPO_DATA_URI.split(',');
+    expect(cabecalho).toBe('data:image/jpeg;base64');
+    expect(b64).toMatch(/^[A-Za-z0-9+/]+=*$/);
+    // um JPEG começa por FF D8 FF, que em base64 dá "/9j/"
+    expect(b64.startsWith('/9j/')).toBe(true);
   });
 });

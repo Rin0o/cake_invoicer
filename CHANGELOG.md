@@ -16,6 +16,10 @@ Cada versão distribuída tem também um `android.versionCode` (em `app.json`) m
 
 ## [Por lançar]
 
+### Corrigido
+
+- O logótipo não aparecia no PDF do orçamento no APK instalado.
+
 ## [0.2.0] — 2026-11-20
 
 Fase 2 da especificação e primeiras melhorias da fase 3.

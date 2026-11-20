@@ -1,31 +1,14 @@
 /**
  * Gera o PDF do orçamento (expo-print) e abre a folha de partilha.
- * O logótipo vem com a app (`assets/diana_cakes_logo.png`) e é embebido em base64,
- * porque o WebView do PDF não lê ficheiros locais de forma fiável.
+ * O logótipo está embebido em base64 no código (`logotipo.ts`): o WebView do PDF não lê
+ * ficheiros locais e, no APK de release, a imagem da app não tem caminho de ficheiro legível.
  */
-import { Asset } from 'expo-asset';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
+import { LOGOTIPO_DATA_URI } from './logotipo';
 import { htmlOrcamento, nomeFicheiroPdf, type DadosPdf } from './template';
-
-const LOGOTIPO = require('../../assets/diana_cakes_logo.png');
-
-let logotipoEmCache: string | null = null;
-
-async function logotipoDataUri(): Promise<string | null> {
-  if (logotipoEmCache) return logotipoEmCache;
-  try {
-    const [asset] = await Asset.loadAsync(LOGOTIPO);
-    if (!asset.localUri) return null;
-    logotipoEmCache = `data:image/png;base64,${await new File(asset.localUri).base64()}`;
-    return logotipoEmCache;
-  } catch {
-    // Sem logótipo o PDF continua a ser útil.
-    return null;
-  }
-}
 
 /** A4 a 72 ppp. */
 const A4 = { width: 595, height: 842 };
@@ -35,7 +18,7 @@ export async function partilharPdf(dados: Omit<DadosPdf, 'logotipo'>, cliente: s
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('A partilha de ficheiros não está disponível neste dispositivo.');
   }
-  const html = htmlOrcamento({ ...dados, logotipo: await logotipoDataUri() });
+  const html = htmlOrcamento({ ...dados, logotipo: LOGOTIPO_DATA_URI });
   // O ficheiro criado pelo expo-print tem um nome aleatório e o expo-file-system não tem
   // permissão para o mover ("Missing 'READ' permission"). Por isso pede-se o PDF em base64 e
   // grava-se um ficheiro próprio, com um nome legível para o cliente.

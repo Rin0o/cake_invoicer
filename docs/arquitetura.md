@@ -64,8 +64,11 @@ Um orçamento antigo tem de dar sempre o mesmo valor. Por isso:
   o diálogo é o mesmo no editor e no toque longo da lista.
 - PDF: [src/pdf/template.ts](../src/pdf/template.ts) gera o HTML (puro, testado, escapa o texto);
   [src/pdf/pdf.ts](../src/pdf/pdf.ts) chama `expo-print`, dá ao ficheiro um nome legível e abre a
-  folha de partilha. O logótipo é `assets/diana_cakes_logo.png`, lido com `expo-asset` e embebido em
-  base64. Para mudar o logótipo, substituir esse ficheiro (PNG quadrado, fundo transparente).
+  folha de partilha. O logótipo está embebido em base64 em
+  [src/pdf/logotipo.ts](../src/pdf/logotipo.ts), gerado a partir de `assets/diana_cakes_logo.png`.
+  Não se lê o ficheiro em runtime porque, no APK de release, a imagem da app não tem caminho de
+  ficheiro legível (o PDF saía sem logótipo). Para mudar o logótipo, substituir o PNG (quadrado) e
+  correr `powershell -File scripts/gerar-logotipo.ps1`.
   Rever o PDF e tornar o branding configurável está nos planos futuros (especificação, fase 3).
 
 ## Número, pedido e dados do cliente
