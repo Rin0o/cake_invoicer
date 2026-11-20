@@ -102,14 +102,30 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
       estado abre a lista dos 5 estados, com o atual marcado; escolher outro muda-o e a lista
       mostra o estado novo. "Cancelar" ou tocar fora não muda nada.
 - [ ] Em "Enviado" aparecem, na mesma linha e à direita do estado, "Aceitou" (em destaque) e
-      "Recusou"; em "Aceite", "Entregue"; em "Recusado" e "Entregue", nenhum botão.
+      "Recusou"; em "Aceite", "Entregue"; em "Recusado", "Reabrir"; em "Entregue", nenhum botão.
+- [ ] Num "Recusado", "Reabrir" passa-o a "Rascunho" e mostra "Reaberto: está nos Abertos".
+      Enviá-lo de novo passa-o a "Enviado".
 - [ ] Na lista, toque longo num orçamento: abre a escolha de estado com o nome do cliente;
       escolher muda o estado, mostra uma mensagem curta e o cartão muda de cor. Um toque normal
       continua a abrir o orçamento.
 - [ ] Enviar um rascunho (PDF ou texto) passa-o a "Enviado". Enviar um "Aceite" não muda o estado.
-- [ ] Filtrar a lista por estado; combinar com a pesquisa por cliente; "Todos" volta à lista completa.
-- [ ] Ordem da lista: entregas de hoje e futuras primeiro (a mais próxima no topo), depois as
-      passadas, e no fim as sem data.
+- [ ] A lista abre em "Abertos" (rascunho, enviado, aceite). Os separadores mostram quantos
+      orçamentos há em cada lista. "Entregues" e "Recusados" só têm orçamentos desse estado e
+      não mostram os chips de estado.
+- [ ] Marcar um orçamento como "Entregue" (ou "Recusado") tira-o dos Abertos, com a mensagem
+      "Passou para Entregues" (ou "Recusados"), e a contagem atualiza-se.
+- [ ] Nos Abertos, filtrar por estado; "Todos" volta a todos os abertos. Mudar de separador limpa o filtro.
+- [ ] Escrever na pesquisa esconde os separadores, mostra "A procurar em todos os orçamentos" e
+      encontra também entregues e recusados. Apagar a pesquisa volta ao separador anterior.
+- [ ] Ordem nos Abertos: entregas de hoje e futuras primeiro (a mais próxima no topo), depois as
+      passadas, e no fim as sem data. Nos Entregues e Recusados: o último a mudar de estado no topo.
+- [ ] No orçamento, ao lado do estado aparece "desde <data>". Mudar o estado põe a data de hoje;
+      editar o cliente ou os bolos não a muda.
+- [ ] Nos Entregues e Recusados, o cartão mostra a data em que ficou nesse estado (ícone de
+      calendário com visto), não a da entrega.
+- [ ] Depois de atualizar a app sobre uma versão anterior, os orçamentos antigos mostram uma data
+      (a da última alteração) e nenhum fica sem data.
+- [ ] Num telemóvel estreito, os três separadores com números (ex.: "Entregues (40)") cabem sem cortar.
 
 ## Partilha
 

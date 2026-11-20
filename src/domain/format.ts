@@ -116,3 +116,10 @@ export function formatarData(iso: string | null | undefined): string {
   const [a, m, d] = iso.split('-');
   return `${d}/${m}/${a}`;
 }
+
+/** Instante ISO guardado na base (UTC, ex.: `estado_em`) → "dd/mm/aaaa" no dia local. */
+export function formatarDataDeInstante(instante: string | null | undefined): string {
+  if (!instante) return '';
+  const d = new Date(instante);
+  return Number.isNaN(d.getTime()) ? '' : formatarData(hojeIso(d));
+}

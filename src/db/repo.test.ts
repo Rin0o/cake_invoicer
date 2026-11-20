@@ -3,6 +3,7 @@ import { gerarBackup, restaurarBackup, TABELAS, validarBackup } from '@/backup/b
 import { migrar, MIGRATIONS, VERSAO_SCHEMA } from '@/db/migrations';
 import * as repo from '@/db/repo';
 import { abrirBaseDeTeste } from '@/db/testDb';
+import type { EstadoOrcamento } from '@/domain/estados';
 import { formatarNumero } from '@/domain/numero';
 import { formatarReferencia } from '@/domain/referencia';
 import { paraUnidadeItem } from '@/domain/units';
@@ -57,6 +58,24 @@ describe('migrations', () => {
 
     expect((await repo.obterDefinicoes(comOrcamentos)).pdf_cor).toBe('framboesa');
     expect((await repo.obterDefinicoes(semOrcamentos)).pdf_cor).toBe('marinho');
+    espiao.mockRestore();
+  });
+
+  it('v5: a data do estado dos orçamentos existentes é a da última alteração', async () => {
+    const espiao = jest.spyOn(backupModulo, 'guardarBackupAutomatico').mockResolvedValue();
+    const db = abrirBaseDeTeste();
+    for (let v = 0; v < 4; v++) await db.execAsync(MIGRATIONS[v]);
+    await db.execAsync('PRAGMA user_version = 4');
+    await db.execAsync(
+      `INSERT INTO orcamentos (valor_hora_cent, indireto_pct, margem_pct, criado_em, atualizado_em,
+         numero_ano, numero_seq, estado)
+       VALUES (1000, 10, 30, '2026-11-01T10:00:00.000Z', '2026-11-15T18:30:00.000Z', 2026, 1, 'entregue')`,
+    );
+
+    await migrar(db);
+
+    const o = (await repo.listarOrcamentos(db))[0];
+    expect(o.estado_em).toBe('2026-11-15T18:30:00.000Z');
     espiao.mockRestore();
   });
 
@@ -238,6 +257,79 @@ describe('orçamentos', () => {
     expect((await repo.listarOrcamentos(db, { estado: 'aceite' })).map((o) => o.id)).toEqual([a]);
     expect((await repo.listarOrcamentos(db, { estado: 'rascunho', pesquisa: 'ana' })).map((o) => o.id)).toEqual([b]);
     expect(await repo.listarOrcamentos(db, { estado: 'entregue' })).toHaveLength(0);
+  });
+
+  it('filtra por grupo e conta os orçamentos de cada grupo', async () => {
+    const db = await novaBase();
+    const criar = async (cliente: string, estado: EstadoOrcamento) => {
+      const id = await repo.criarOrcamento(db);
+      await repo.atualizarOrcamento(db, id, { cliente, estado });
+      return id;
+    };
+    const rascunho = await criar('Ana', 'rascunho');
+    const enviado = await criar('Bia', 'enviado');
+    const aceite = await criar('Carla', 'aceite');
+    const entregue = await criar('Ana Rita', 'entregue');
+    const recusado = await criar('Duarte', 'recusado');
+
+    const ids = async (opcoes: Parameters<typeof repo.listarOrcamentos>[1]) =>
+      (await repo.listarOrcamentos(db, opcoes)).map((o) => o.id).sort((x, y) => x - y);
+    expect(await ids({ grupo: 'abertos' })).toEqual([rascunho, enviado, aceite]);
+    expect(await ids({ grupo: 'entregues' })).toEqual([entregue]);
+    expect(await ids({ grupo: 'recusados' })).toEqual([recusado]);
+    expect(await ids({ grupo: 'abertos', estado: 'enviado' })).toEqual([enviado]);
+    expect(await ids({ grupo: 'entregues', pesquisa: 'ana' })).toEqual([entregue]);
+    // Sem grupo, a pesquisa procura em todos.
+    expect(await ids({ pesquisa: 'ana' })).toEqual([rascunho, entregue]);
+
+    expect(await repo.contarPorGrupo(db)).toEqual({ abertos: 3, entregues: 1, recusados: 1 });
+  });
+
+  it('reabrir um recusado devolve-o aos abertos', async () => {
+    const db = await novaBase();
+    const id = await repo.criarOrcamento(db);
+    await repo.atualizarOrcamento(db, id, { estado: 'recusado' });
+    expect(await repo.contarPorGrupo(db)).toEqual({ abertos: 0, entregues: 0, recusados: 1 });
+    await repo.atualizarOrcamento(db, id, { estado: 'rascunho' });
+    expect((await repo.listarOrcamentos(db, { grupo: 'abertos' })).map((o) => o.id)).toEqual([id]);
+    expect(await repo.contarPorGrupo(db)).toEqual({ abertos: 1, entregues: 0, recusados: 0 });
+  });
+
+  it('a data do estado muda só quando o estado muda', async () => {
+    const db = await novaBase();
+    const id = await repo.criarOrcamento(db);
+    const estadoEm = async () => (await repo.obterOrcamento(db, id))!.estado_em;
+    const marcar = (quando: string) =>
+      db.runAsync('UPDATE orcamentos SET estado_em = ? WHERE id = ?', quando, id);
+
+    expect(await estadoEm()).toBe((await repo.obterOrcamento(db, id))!.criado_em);
+
+    await marcar('2026-01-01T00:00:00.000Z');
+    await repo.atualizarOrcamento(db, id, { cliente: 'Ana', notas: 'sem glúten' });
+    expect(await estadoEm()).toBe('2026-01-01T00:00:00.000Z');
+    await repo.atualizarOrcamento(db, id, { estado: 'rascunho' }); // o mesmo estado
+    expect(await estadoEm()).toBe('2026-01-01T00:00:00.000Z');
+
+    const antes = new Date().toISOString();
+    await repo.atualizarOrcamento(db, id, { estado: 'recusado', cliente: 'Ana Rita' });
+    expect(await estadoEm()).not.toBe('2026-01-01T00:00:00.000Z');
+    expect((await estadoEm()) >= antes).toBe(true);
+    expect((await repo.obterOrcamento(db, id))!.cliente).toBe('Ana Rita');
+  });
+
+  it('histórico: do mais recente para o mais antigo, pela data do estado', async () => {
+    const db = await novaBase();
+    const criar = async (cliente: string, estado_em: string, data_entrega: string | null) => {
+      const id = await repo.criarOrcamento(db);
+      await repo.atualizarOrcamento(db, id, { cliente, data_entrega, estado: 'entregue' });
+      await db.runAsync('UPDATE orcamentos SET estado_em = ? WHERE id = ?', estado_em, id);
+      return id;
+    };
+    await criar('janeiro', '2027-01-15T12:00:00.000Z', '2027-03-30');
+    await criar('fevereiro', '2027-02-10T12:00:00.000Z', null);
+    await criar('março', '2027-03-20T12:00:00.000Z', '2027-01-01');
+    const ordem = (await repo.listarOrcamentos(db, { grupo: 'entregues', hoje: '2027-04-01' })).map((o) => o.cliente);
+    expect(ordem).toEqual(['março', 'fevereiro', 'janeiro']);
   });
 
   it('ordena: próximas entregas primeiro, depois as passadas, e sem data no fim', async () => {
@@ -625,6 +717,32 @@ describe('backup', () => {
     expect(d.pdf_cor).toBe('framboesa');
     expect(d.contacto_telefone).toBe('');
     expect(await repo.listarOrcamentos(db)).toHaveLength(1);
+  });
+
+  it('um backup v4 fica com a data do estado igual à última alteração', async () => {
+    const origem = await novaBase();
+    const id = await repo.criarOrcamento(origem);
+    await origem.runAsync(
+      'UPDATE orcamentos SET atualizado_em = ? WHERE id = ?', '2026-10-05T09:00:00.000Z', id,
+    );
+    const v4 = JSON.parse(JSON.stringify(await gerarBackup(origem))) as backupModulo.Backup;
+    v4.versao_schema = 4;
+    v4.tabelas.orcamentos = v4.tabelas.orcamentos.map(({ estado_em: _e, ...linha }) => linha);
+
+    const db = await novaBase();
+    await restaurarBackup(db, validarBackup(v4, VERSAO_SCHEMA));
+    expect((await repo.obterOrcamento(db, id))!.estado_em).toBe('2026-10-05T09:00:00.000Z');
+  });
+
+  it('o backup inclui a data do estado', async () => {
+    const origem = await novaBase();
+    const id = await repo.criarOrcamento(origem);
+    await origem.runAsync('UPDATE orcamentos SET estado_em = ? WHERE id = ?', '2026-09-09T09:09:09.000Z', id);
+    const backup = validarBackup(JSON.parse(JSON.stringify(await gerarBackup(origem))), VERSAO_SCHEMA);
+
+    const destino = await novaBase();
+    await restaurarBackup(destino, backup);
+    expect((await repo.obterOrcamento(destino, id))!.estado_em).toBe('2026-09-09T09:09:09.000Z');
   });
 
   it('o backup inclui a cor e os contactos', async () => {

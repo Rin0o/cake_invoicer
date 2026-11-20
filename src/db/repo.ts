@@ -4,7 +4,7 @@
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import type { EstadoOrcamento } from '@/domain/estados';
+import { ESTADOS_DO_GRUPO, grupoDoEstado, type EstadoOrcamento, type GrupoOrcamentos } from '@/domain/estados';
 import { hojeIso } from '@/domain/format';
 import type { NumeroOrcamento } from '@/domain/numero';
 import { calcularOrcamento, type ParametrosOrcamento } from '@/domain/pricing';
@@ -69,6 +69,8 @@ export interface Orcamento {
   total_cent: number;
   criado_em: string;
   atualizado_em: string;
+  /** Quando o estado mudou pela última vez (ISO). Muda só com o estado, não com outras edições. */
+  estado_em: string;
 }
 
 export interface Bolo {
@@ -233,13 +235,15 @@ async function numerosDaPesquisa(db: SQLiteDatabase, pesquisa: string): Promise<
 }
 
 /**
- * Histórico de orçamentos, com pesquisa por cliente, título, número ou referência, e filtro por
+ * Orçamentos, com pesquisa por cliente, título, número ou referência, e filtro por grupo e/ou
  * estado. Ordem: entregas de hoje em diante (a mais próxima primeiro), depois as passadas
  * (a mais recente primeiro), e no fim os orçamentos sem data de entrega.
+ * Nos grupos do histórico (entregues, recusados) a ordem é do mais recente para o mais antigo,
+ * pela data em que ficou nesse estado (`estado_em`).
  */
 export async function listarOrcamentos(
   db: SQLiteDatabase,
-  opcoes: { pesquisa?: string; estado?: EstadoOrcamento | null; hoje?: string } = {},
+  opcoes: { pesquisa?: string; estado?: EstadoOrcamento | null; grupo?: GrupoOrcamentos | null; hoje?: string } = {},
 ) {
   const hoje = opcoes.hoje ?? hojeIso();
   const pesquisa = (opcoes.pesquisa ?? '').trim();
@@ -254,19 +258,39 @@ export async function listarOrcamentos(
     filtroEstado = 'AND o.estado = ?';
     args.push(opcoes.estado);
   }
-  args.push(hoje, hoje, hoje);
+  if (opcoes.grupo) {
+    const estados = ESTADOS_DO_GRUPO[opcoes.grupo];
+    filtroEstado += ` AND o.estado IN (${estados.map(() => '?').join(', ')})`;
+    args.push(...estados);
+  }
+  let ordem: string;
+  if (opcoes.grupo && opcoes.grupo !== 'abertos') {
+    ordem = `o.estado_em DESC, o.id DESC`;
+  } else {
+    ordem = `CASE WHEN o.data_entrega IS NULL THEN 2 WHEN o.data_entrega >= ? THEN 0 ELSE 1 END,
+       CASE WHEN o.data_entrega >= ? THEN o.data_entrega END ASC,
+       CASE WHEN o.data_entrega < ? THEN o.data_entrega END DESC,
+       o.criado_em DESC, o.id DESC`;
+    args.push(hoje, hoje, hoje);
+  }
   return db.getAllAsync<ResumoOrcamento>(
     `SELECT o.*, (SELECT COUNT(*) FROM orcamento_bolos b WHERE b.orcamento_id = o.id) AS n_bolos
      FROM orcamentos o
      WHERE (o.cliente LIKE ? ESCAPE '\\' OR o.titulo LIKE ? ESCAPE '\\' OR ${SQL_NUMERO} LIKE ? ESCAPE '\\'${filtroReferencia})
        ${filtroEstado}
-     ORDER BY
-       CASE WHEN o.data_entrega IS NULL THEN 2 WHEN o.data_entrega >= ? THEN 0 ELSE 1 END,
-       CASE WHEN o.data_entrega >= ? THEN o.data_entrega END ASC,
-       CASE WHEN o.data_entrega < ? THEN o.data_entrega END DESC,
-       o.criado_em DESC, o.id DESC`,
+     ORDER BY ${ordem}`,
     args,
   );
+}
+
+/** Quantos orçamentos há em cada grupo (para os separadores do ecrã de orçamentos). */
+export async function contarPorGrupo(db: SQLiteDatabase): Promise<Record<GrupoOrcamentos, number>> {
+  const linhas = await db.getAllAsync<{ estado: EstadoOrcamento; n: number }>(
+    'SELECT estado, COUNT(*) AS n FROM orcamentos GROUP BY estado',
+  );
+  const contagem: Record<GrupoOrcamentos, number> = { abertos: 0, entregues: 0, recusados: 0 };
+  for (const l of linhas) contagem[grupoDoEstado(l.estado)] += l.n;
+  return contagem;
 }
 
 /**
@@ -303,9 +327,9 @@ export async function criarOrcamento(db: SQLiteDatabase, opcoes: { hoje?: string
     const seq = await proximoNumero(db, ano);
     const r = await db.runAsync(
       `INSERT INTO orcamentos
-       (numero_ano, numero_seq, valor_hora_cent, indireto_pct, margem_pct, criado_em, atualizado_em)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ano, seq, d.valor_hora_cent, d.custo_indireto_pct, d.margem_pct, t, t,
+       (numero_ano, numero_seq, valor_hora_cent, indireto_pct, margem_pct, criado_em, atualizado_em, estado_em)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ano, seq, d.valor_hora_cent, d.custo_indireto_pct, d.margem_pct, t, t, t,
     );
     id = r.lastInsertRowId;
     await db.runAsync(
@@ -369,10 +393,14 @@ export async function atualizarOrcamento(
 ) {
   const chaves = Object.keys(campos) as (keyof typeof campos)[];
   if (chaves.length === 0) return;
-  await db.runAsync(
-    `UPDATE orcamentos SET ${chaves.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`,
-    ...chaves.map((k) => campos[k] ?? null), id,
-  );
+  const sets = chaves.map((k) => `${k} = ?`);
+  const args: (string | number | null)[] = chaves.map((k) => campos[k] ?? null);
+  if (campos.estado !== undefined) {
+    // Só conta como mudança se o estado for mesmo outro (o SQLite compara com o valor antigo).
+    sets.push('estado_em = CASE WHEN estado = ? THEN estado_em ELSE ? END');
+    args.push(campos.estado, agora());
+  }
+  await db.runAsync(`UPDATE orcamentos SET ${sets.join(', ')} WHERE id = ?`, ...args, id);
   await recalcularTotais(db, id);
 }
 

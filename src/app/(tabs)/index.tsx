@@ -3,11 +3,27 @@ import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
-import { Chip, FAB, Searchbar, Text } from 'react-native-paper';
+import { Chip, FAB, Searchbar, SegmentedButtons, Text } from 'react-native-paper';
 
-import { atualizarOrcamento, criarOrcamento, listarOrcamentos, type ResumoOrcamento } from '@/db/repo';
-import { ESTADOS, NOME_ESTADO, type EstadoOrcamento } from '@/domain/estados';
-import { formatarData, formatarEuroInteiro } from '@/domain/format';
+import {
+  atualizarOrcamento,
+  contarPorGrupo,
+  criarOrcamento,
+  listarOrcamentos,
+  type ResumoOrcamento,
+} from '@/db/repo';
+import {
+  avisoMudancaDeGrupo,
+  ESTADOS,
+  ESTADOS_DO_GRUPO,
+  GRUPOS,
+  grupoDoEstado,
+  NOME_ESTADO,
+  NOME_GRUPO,
+  type EstadoOrcamento,
+  type GrupoOrcamentos,
+} from '@/domain/estados';
+import { formatarData, formatarDataDeInstante, formatarEuroInteiro } from '@/domain/format';
 import { formatarNumero } from '@/domain/numero';
 import { CartaoLista, Etiqueta } from '@/ui/CartaoLista';
 import { mostrarErro } from '@/ui/confirmar';
@@ -19,21 +35,38 @@ import { COR_ESTADO, espaco, estiloChipEstado, tema } from '@/ui/theme';
 export default function Orcamentos() {
   const db = useSQLiteContext();
   const [pesquisa, setPesquisa] = useState('');
+  const [grupo, setGrupo] = useState<GrupoOrcamentos>('abertos');
   const [estado, setEstado] = useState<EstadoOrcamento | null>(null);
   const [lista, setLista] = useState<ResumoOrcamento[]>([]);
+  const [contagem, setContagem] = useState<Record<GrupoOrcamentos, number> | null>(null);
   /** Orçamento cujo estado se está a mudar (toque longo). */
   const [aMudar, setAMudar] = useState<ResumoOrcamento | null>(null);
 
+  // A pesquisa procura em todas as listas, para um orçamento antigo nunca "desaparecer".
+  const aPesquisar = pesquisa.trim() !== '';
+  const estadosVisiveis: readonly EstadoOrcamento[] = aPesquisar ? ESTADOS : ESTADOS_DO_GRUPO[grupo];
+  // Um filtro de estado que não existe na lista atual deixa de se aplicar.
+  const estadoAtivo = estado && estadosVisiveis.includes(estado) ? estado : null;
+
   const carregar = useCallback(() => {
-    listarOrcamentos(db, { pesquisa, estado }).then(setLista).catch(mostrarErro);
-  }, [db, pesquisa, estado]);
+    listarOrcamentos(db, { pesquisa, estado: estadoAtivo, grupo: aPesquisar ? null : grupo })
+      .then(setLista)
+      .catch(mostrarErro);
+    contarPorGrupo(db).then(setContagem).catch(mostrarErro);
+  }, [db, pesquisa, estadoAtivo, grupo, aPesquisar]);
 
   useFocusEffect(carregar);
+
+  function escolherGrupo(g: GrupoOrcamentos) {
+    setGrupo(g);
+    setEstado(null);
+  }
 
   async function mudarEstado(o: ResumoOrcamento, novo: EstadoOrcamento) {
     try {
       await atualizarOrcamento(db, o.id, { estado: novo });
-      avisar(`${o.cliente || 'Orçamento'}: ${NOME_ESTADO[novo]}`);
+      const aviso = avisoMudancaDeGrupo(o.estado, novo);
+      avisar(`${o.cliente || 'Orçamento'}: ${NOME_ESTADO[novo]}${aviso ? `. ${aviso}` : ''}`);
       carregar();
     } catch (e) {
       mostrarErro(e);
@@ -49,7 +82,17 @@ export default function Orcamentos() {
     }
   }
 
-  const filtrado = !!pesquisa || estado !== null;
+  const filtrado = aPesquisar || estadoAtivo !== null;
+
+  function textoVazio() {
+    if (filtrado) return 'Nenhum orçamento encontrado.';
+    if (grupo === 'entregues') return 'Ainda não há orçamentos entregues.';
+    if (grupo === 'recusados') return 'Nenhum orçamento recusado.';
+    if (contagem && contagem.entregues + contagem.recusados > 0) {
+      return 'Não há orçamentos abertos.\nToque em + para criar um novo.';
+    }
+    return 'Ainda não há orçamentos.\nToque em + para criar o primeiro.';
+  }
 
   return (
     <View style={styles.ecra}>
@@ -59,34 +102,61 @@ export default function Orcamentos() {
         onChangeText={setPesquisa}
         style={styles.pesquisa}
       />
-      <View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtros}>
-          <Chip selected={estado === null} showSelectedOverlay onPress={() => setEstado(null)}>
-            Todos
-          </Chip>
-          {ESTADOS.map((e) => (
-            <Chip
-              key={e}
-              selected={estado === e}
-              showSelectedOverlay
-              {...estiloChipEstado(e, estado === e)}
-              onPress={() => setEstado(estado === e ? null : e)}>
-              {NOME_ESTADO[e]}
+      {aPesquisar ? (
+        <Text variant="labelMedium" style={styles.aviso}>
+          A procurar em todos os orçamentos
+        </Text>
+      ) : (
+        <SegmentedButtons
+          value={grupo}
+          onValueChange={(v) => escolherGrupo(v as GrupoOrcamentos)}
+          style={styles.grupos}
+          buttons={GRUPOS.map((g) => {
+            const n = contagem?.[g];
+            return {
+              value: g,
+              label: n ? `${NOME_GRUPO[g]} (${n})` : NOME_GRUPO[g],
+              accessibilityLabel: `${NOME_GRUPO[g]}${n !== undefined ? `, ${n}` : ''}`,
+              labelStyle: styles.grupoTexto,
+            };
+          })}
+        />
+      )}
+      {/* Nas listas com um só estado (entregues, recusados) não há nada para filtrar. */}
+      {estadosVisiveis.length > 1 ? (
+        <View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtros}>
+            <Chip selected={estadoAtivo === null} showSelectedOverlay onPress={() => setEstado(null)}>
+              Todos
             </Chip>
-          ))}
-        </ScrollView>
-      </View>
+            {estadosVisiveis.map((e) => (
+              <Chip
+                key={e}
+                selected={estadoAtivo === e}
+                showSelectedOverlay
+                {...estiloChipEstado(e, estadoAtivo === e)}
+                onPress={() => setEstado(estadoAtivo === e ? null : e)}>
+                {NOME_ESTADO[e]}
+              </Chip>
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
       <FlatList
         data={lista}
         keyExtractor={(o) => String(o.id)}
         contentContainerStyle={styles.lista}
         ListEmptyComponent={
           <Text style={styles.vazio} variant="bodyLarge">
-            {filtrado ? 'Nenhum orçamento encontrado.' : 'Ainda não há orçamentos.\nToque em + para criar o primeiro.'}
+            {textoVazio()}
           </Text>
         }
         renderItem={({ item: o }) => {
           const cor = COR_ESTADO[o.estado];
+          // Num entregue ou recusado interessa quando ficou assim, não a entrega prevista.
+          const fechado = grupoDoEstado(o.estado) !== 'abertos';
+          const data = fechado ? formatarDataDeInstante(o.estado_em) : formatarData(o.data_entrega);
+          const rotuloData = fechado ? `${NOME_ESTADO[o.estado]} a ${data}` : `Entrega ${data}`;
           return (
             <CartaoLista
               titulo={o.cliente || 'Sem cliente'}
@@ -103,15 +173,15 @@ export default function Orcamentos() {
                   ) : null}
                   <View style={styles.linhaDetalhes}>
                     <Etiqueta texto={NOME_ESTADO[o.estado]} cor={cor.texto} fundo={cor.fundo} />
-                    {o.data_entrega ? (
-                      <View style={styles.entrega} accessibilityLabel={`Entrega ${formatarData(o.data_entrega)}`}>
+                    {data ? (
+                      <View style={styles.entrega} accessibilityLabel={rotuloData}>
                         <MaterialCommunityIcons
-                          name="calendar-month-outline"
+                          name={fechado ? 'calendar-check-outline' : 'calendar-month-outline'}
                           size={14}
                           color={tema.colors.onSurfaceVariant}
                         />
                         <Text variant="bodySmall" numberOfLines={1} style={styles.detalhes}>
-                          {formatarData(o.data_entrega)}
+                          {data}
                         </Text>
                       </View>
                     ) : null}
@@ -150,6 +220,9 @@ export default function Orcamentos() {
 const styles = StyleSheet.create({
   ecra: { flex: 1 },
   pesquisa: { margin: espaco.m, marginBottom: espaco.s, backgroundColor: tema.colors.surface },
+  grupos: { marginHorizontal: espaco.m, marginBottom: espaco.s },
+  grupoTexto: { marginHorizontal: 0, fontSize: 13 },
+  aviso: { marginHorizontal: espaco.m, marginBottom: espaco.s, color: tema.colors.onSurfaceVariant },
   filtros: { gap: espaco.s, paddingHorizontal: espaco.m, paddingBottom: espaco.s },
   lista: { paddingTop: espaco.xs, paddingBottom: 96 },
   vazio: { textAlign: 'center', marginTop: espaco.l * 2, color: tema.colors.onSurfaceVariant },

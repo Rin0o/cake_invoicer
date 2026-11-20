@@ -15,9 +15,10 @@ import {
   obterOrcamento,
   type OrcamentoCompleto,
 } from '@/db/repo';
-import { estadoDepoisDePartilhar, type EstadoOrcamento } from '@/domain/estados';
+import { avisoMudancaDeGrupo, estadoDepoisDePartilhar, type EstadoOrcamento } from '@/domain/estados';
 import {
   formatarData,
+  formatarDataDeInstante,
   formatarDecimal,
   formatarEuro,
   formatarEuroInteiro,
@@ -205,7 +206,12 @@ export default function EditarOrcamento() {
   }
 
   function mudarEstado(estado: EstadoOrcamento) {
-    gestor.executar(() => guardarCampos({ estado }));
+    const anterior = o?.estado;
+    gestor.executar(async () => {
+      await guardarCampos({ estado });
+      const aviso = anterior && avisoMudancaDeGrupo(anterior, estado);
+      if (aviso) avisar(aviso);
+    });
   }
 
   /** Partilha com o cliente; um rascunho passa a "enviado". */
@@ -311,6 +317,11 @@ export default function EditarOrcamento() {
         <ScrollView contentContainerStyle={styles.conteudo} keyboardShouldPersistTaps="handled">
           <View style={styles.estados}>
             <BotaoEstado estado={o.estado} onPress={() => setEscolherEstado(true)} />
+            {formatarDataDeInstante(o.estado_em) ? (
+              <Text variant="bodySmall" style={styles.estadoDesde}>
+                desde {formatarDataDeInstante(o.estado_em)}
+              </Text>
+            ) : null}
             <PassosSeguintes estado={o.estado} aoEscolher={mudarEstado} />
           </View>
           <DialogoEstado
@@ -421,4 +432,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: espaco.m,
     paddingBottom: espaco.m,
   },
+  estadoDesde: { color: tema.colors.onSurfaceVariant },
 });

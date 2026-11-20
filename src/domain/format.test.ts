@@ -1,6 +1,7 @@
 import {
   centParaTexto,
   formatarData,
+  formatarDataDeInstante,
   formatarDecimal,
   formatarEuro,
   formatarEuroInteiro,
@@ -14,6 +15,19 @@ import {
   lerTempo,
 } from './format';
 import { deUnidadeItem, paraUnidadeItem, unidadeEntradaPorOmissao } from './units';
+
+describe('formatarDataDeInstante', () => {
+  it('mostra o dia local do instante', () => {
+    const instante = new Date(2026, 10, 12, 23, 45).toISOString(); // 23:45 locais
+    expect(formatarDataDeInstante(instante)).toBe('12/11/2026');
+  });
+
+  it('vazio ou inválido não mostra nada', () => {
+    expect(formatarDataDeInstante('')).toBe('');
+    expect(formatarDataDeInstante(null)).toBe('');
+    expect(formatarDataDeInstante('ontem')).toBe('');
+  });
+});
 
 describe('isoParaData', () => {
   it('converte para meia-noite local e volta ao mesmo ISO', () => {
