@@ -212,8 +212,20 @@ export default function EditarOrcamento() {
     setAGerar(true);
     try {
       if (como === 'pdf') {
+        // Nome, cor e contactos vêm das definições atuais (não do orçamento): ver template.ts.
+        const d = await obterDefinicoes(db);
         await partilharPdf(
           {
+            nomeNegocio: d.nome_negocio,
+            cor: d.pdf_cor,
+            contactos: {
+              telefone: d.contacto_telefone,
+              email: d.contacto_email,
+              instagram: d.contacto_instagram,
+              facebook: d.contacto_facebook,
+              tiktok: d.contacto_tiktok,
+              site: d.contacto_site,
+            },
             numero: formatarNumero(o),
             dataEntrega: o.data_entrega,
             bolos: o.bolos,

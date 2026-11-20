@@ -38,7 +38,12 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
 
 - [ ] Alterar o valor/hora, os indiretos e a margem; guardar. Um orçamento **novo** usa os
       valores novos e os **antigos** não mudam.
-- [ ] O nome do negócio aparece no texto partilhado e **não** aparece no PDF.
+- [ ] O nome do negócio aparece no texto partilhado e no topo do PDF.
+- [ ] Escolher outra cor do PDF e guardar: o próximo PDF (também de um orçamento antigo) usa essa cor.
+- [ ] Preencher só o telefone e o Instagram (como "@nome" e depois como link do perfil): o fundo do
+      PDF mostra "912 345 678 · Instagram @nome". Os contactos vazios não aparecem.
+- [ ] Os nomes das oito cores cabem por baixo dos círculos, sem cortar (num telemóvel pequeno).
+- [ ] Atualizar por cima da 0.2.0, com orçamentos: a cor do PDF fica "Framboesa".
 
 ## Orçamento
 
@@ -107,14 +112,15 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
 ## Partilha
 
 - [ ] **Enviar PDF** → WhatsApp e → Drive: o ficheiro chama-se `Orcamento-<número>-<cliente>.pdf`.
-- [ ] O PDF abre em A4 com o logótipo nítido (sem manchas à volta), número, data, entrega, bolos
-      com o preço final e total certo. Acentos corretos. **Sem** o nome do cliente.
+- [ ] O PDF abre em A4 com o nome do negócio no topo, número, data, entrega, bolos com o preço
+      final e total certo, e os contactos no fundo. Acentos corretos. **Sem** o nome do cliente.
+- [ ] Sem nome do negócio nem contactos: o PDF começa em "Orçamento" e não tem linhas vazias.
 - [ ] O texto começa por "*Orçamento nº 2026-004 — <negócio>*".
 - [ ] Orçamento sem data de entrega: o PDF não mostra linhas vazias.
 - [ ] Muitos bolos (ex.: 15): o PDF passa para a segunda página sem cortar linhas a meio.
 - [ ] **Enviar em texto** → WhatsApp: o texto chega formatado (negrito no título e no total).
-- [ ] O PDF e o texto **não** incluem o nome do cliente, o pedido, ingredientes, o custo, as notas internas,
-      contactos nem o preço calculado de um bolo ajustado.
+- [ ] O PDF e o texto **não** incluem o nome do cliente, o pedido, ingredientes, o custo, as notas internas
+      nem o preço calculado de um bolo ajustado. O texto também não inclui os contactos do negócio.
 
 ## Backup
 

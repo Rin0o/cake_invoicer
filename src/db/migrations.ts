@@ -132,6 +132,21 @@ export const MIGRATIONS: string[] = [
   INSERT INTO numeracao (ano, ultimo)
     SELECT numero_ano, MAX(numero_seq) FROM orcamentos GROUP BY numero_ano;
   `,
+
+  // v4 — marca no PDF: cor (id de src/pdf/cores.ts) e contactos do negócio no rodapé.
+  // Quem já tem orçamentos fica com a framboesa, a cor que o PDF tinha até aqui; uma base
+  // nova fica com a cor por omissão (a mesma regra de corInicialPdf em src/backup/backup.ts).
+  `
+  ALTER TABLE definicoes ADD COLUMN pdf_cor TEXT NOT NULL DEFAULT 'marinho';
+  ALTER TABLE definicoes ADD COLUMN contacto_telefone TEXT NOT NULL DEFAULT '';
+  ALTER TABLE definicoes ADD COLUMN contacto_email TEXT NOT NULL DEFAULT '';
+  ALTER TABLE definicoes ADD COLUMN contacto_instagram TEXT NOT NULL DEFAULT '';
+  ALTER TABLE definicoes ADD COLUMN contacto_facebook TEXT NOT NULL DEFAULT '';
+  ALTER TABLE definicoes ADD COLUMN contacto_tiktok TEXT NOT NULL DEFAULT '';
+  ALTER TABLE definicoes ADD COLUMN contacto_site TEXT NOT NULL DEFAULT '';
+
+  UPDATE definicoes SET pdf_cor = 'framboesa' WHERE EXISTS (SELECT 1 FROM orcamentos);
+  `,
 ];
 
 export const VERSAO_SCHEMA = MIGRATIONS.length;

@@ -24,7 +24,7 @@ App Android nativa, sem backend, para calcular orçamentos de bolos a partir de 
 | RF07 | Linha livre | Linha com descrição e valor, para custos que não estão no catálogo |
 | RF08 | Cálculo automático | Valor de cada linha, custo por bolo, total do orçamento |
 | RF09 | Ajuste dos valores finais | Preço final de cada bolo editável e guardado; mostra a diferença face ao calculado, avisa se ficar abaixo do custo e permite repor o valor calculado |
-| RF10 | Exportar | PDF do orçamento para o cliente: logótipo (incluído na app), número do orçamento, data, data de entrega, cada bolo com o preço final, total e "Orçamento — não serve de fatura". Sem nome do negócio (já está no logótipo), sem nome do cliente, sem título do pedido, sem contactos, sem notas internas nem detalhe de ingredientes. Ficheiro `Orcamento-<número>-<cliente>.pdf` |
+| RF10 | Exportar | PDF do orçamento para o cliente: nome do negócio no topo (se preenchido), número do orçamento, data, data de entrega, cada bolo com o preço final, total, contactos do negócio no fundo (telefone, email, Instagram, Facebook, TikTok, site; só os preenchidos) e "Orçamento — não serve de fatura". Cor escolhida numa paleta de 8 opções nas Definições. Sem logótipo, sem nome do cliente, sem título do pedido, sem notas internas nem detalhe de ingredientes. O nome, a cor e os contactos são sempre os atuais, também em orçamentos antigos. Ficheiro `Orcamento-<número>-<cliente>.pdf` |
 | RF11 | Partilhar | Folha de partilha nativa (WhatsApp, email, Drive) com o PDF ou um resumo em texto. O resumo em texto tem título (com o número e o nome do negócio), entrega, bolos e total, sem o nome do cliente, sem o título do pedido e sem a nota "não serve de fatura" (que fica só no PDF) |
 | RF12 | Histórico | Lista de orçamentos com cliente, título do pedido, estado, entrega e número; filtro por estado e pesquisa por cliente, título ou número. Ordem: entregas de hoje em diante (a mais próxima primeiro), depois as passadas (a mais recente primeiro), e no fim os orçamentos sem data |
 | RF13 | Backup | Exportar e importar toda a base em JSON. Backups de versões anteriores da app continuam a importar |
@@ -44,7 +44,7 @@ React Native com Expo e TypeScript, persistência em SQLite local e build do APK
 | UI | React Native Paper | Componentes Material prontos para formulários e listas |
 | Formulários | Estado local + validação em `domain/format.ts` | Formulários pequenos; o editor do orçamento guarda ao sair de cada campo |
 | Estado | Sem biblioteca | O estado principal vive no SQLite e é recarregado ao voltar a cada ecrã |
-| PDF | expo-print | PDF A4 gerado a partir de template HTML; o logótipo vem com a app, embebido em base64 no código |
+| PDF | expo-print | PDF A4 gerado a partir de template HTML, com a cor e os contactos das definições |
 | Partilha | expo-sharing (ficheiro) + Share.share (texto) | Folha de partilha nativa do Android |
 | Backup | expo-file-system + expo-document-picker | Exportar/importar JSON para fora da pasta da app |
 | Testes | Jest + `node:sqlite` | Testes ao cálculo e às queries/migrations/backup, sem telemóvel |
@@ -57,7 +57,7 @@ Oito tabelas SQLite. Valores monetários guardados em **cêntimos (inteiros)**; 
 | Tabela | Campos principais | Notas |
 | --- | --- | --- |
 | items | id, tipo (ingrediente/material), nome, unidade (kg/l/un), preco\_unidade\_cent, ativo, atualizado\_em | Preço por kg, por litro ou por unidade. `ativo = false` esconde o item sem apagar |
-| definicoes | valor\_hora\_cent, custo\_indireto\_pct, margem\_pct, moeda, nome\_negocio | Linha única. `margem_pct` é o valor por omissão para novos orçamentos |
+| definicoes | valor\_hora\_cent, custo\_indireto\_pct, margem\_pct, moeda, nome\_negocio, pdf\_cor, contacto\_telefone, contacto\_email, contacto\_instagram, contacto\_facebook, contacto\_tiktok, contacto\_site | Linha única. `margem_pct` é o valor por omissão para novos orçamentos. `pdf_cor` é o id de uma cor de `src/pdf/cores.ts` |
 | receitas | id, nome, notas, atualizado\_em | Só quantidades; os preços vêm sempre do catálogo atual |
 | receita\_linhas | id, receita\_id, item\_id (nulo em linha livre), livre, descricao, unidade\_entrada, quantidade, valor\_cent, ordem | Quantidade na unidade do item. Um item usado numa receita não pode ser apagado nem mudar de unidade |
 | numeracao | ano, ultimo | Último número de orçamento usado em cada ano, para nunca reutilizar um número |
@@ -118,7 +118,7 @@ src/
     (tabs)/index.tsx      # histórico de orçamentos: pesquisa e filtro por estado
     (tabs)/receitas.tsx   # lista de receitas
     (tabs)/catalogo.tsx   # ingredientes e materiais
-    (tabs)/definicoes.tsx # valor/hora, percentagens, nome do negócio, backup
+    (tabs)/definicoes.tsx # valor/hora, percentagens, nome, cor e contactos do negócio, backup
     item/[id].tsx         # item do catálogo
     orcamento/[id].tsx    # editor do orçamento: estado, bolos, linhas, tempo, preço final, envio
     orcamento/linha.tsx   # adicionar/editar linha
@@ -154,7 +154,7 @@ Três fases incrementais; cada uma termina com um APK instalado e em uso.
 2. **Saída profissional e receitas:** PDF com logótipo, estados e histórico com filtro e pesquisa, receitas com escala.
 3. **Melhorias:** a definir após uso real. Já feito na 0.2.0: cliente a partir dos contactos, calendário para a data de entrega, número do orçamento e título interno do pedido. Planeado:
    - **Rever o PDF:** aspeto e conteúdo do orçamento enviado ao cliente (organização, o que mostrar, legibilidade no telemóvel).
-   - **Opções de branding:** escolher na app o logótipo, as cores e outros elementos da marca usados no PDF e no texto (hoje o logótipo vem com a app e as cores estão fixas).
+   - **Marca no PDF:** feito depois da 0.2.0: nome do negócio no topo, paleta de cores e contactos no fundo. Por decidir: escolher um logótipo próprio da galeria.
    - Outras ideias: backup automático periódico, estatísticas.
 
 ## 8. Requisitos não funcionais e questões em aberto

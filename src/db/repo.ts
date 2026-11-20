@@ -29,7 +29,24 @@ export interface Definicoes {
   margem_pct: number;
   moeda: string;
   nome_negocio: string;
+  /** Id da cor do PDF, ver `CORES_PDF` em src/pdf/cores.ts. */
+  pdf_cor: string;
+  contacto_telefone: string;
+  contacto_email: string;
+  contacto_instagram: string;
+  contacto_facebook: string;
+  contacto_tiktok: string;
+  contacto_site: string;
 }
+
+/** O que se edita no ecrã Definições (tudo menos a moeda). */
+export type DefinicoesEditaveis = Omit<Definicoes, 'moeda'>;
+
+const CAMPOS_EDITAVEIS = [
+  'valor_hora_cent', 'custo_indireto_pct', 'margem_pct', 'nome_negocio', 'pdf_cor',
+  'contacto_telefone', 'contacto_email', 'contacto_instagram', 'contacto_facebook',
+  'contacto_tiktok', 'contacto_site',
+] as const satisfies readonly (keyof DefinicoesEditaveis)[];
 
 export interface Orcamento {
   id: number;
@@ -183,14 +200,10 @@ export async function obterDefinicoes(db: SQLiteDatabase): Promise<Definicoes> {
   return d;
 }
 
-export async function guardarDefinicoes(
-  db: SQLiteDatabase,
-  d: Pick<Definicoes, 'valor_hora_cent' | 'custo_indireto_pct' | 'margem_pct' | 'nome_negocio'>,
-) {
+export async function guardarDefinicoes(db: SQLiteDatabase, d: DefinicoesEditaveis) {
   await db.runAsync(
-    `UPDATE definicoes SET valor_hora_cent = ?, custo_indireto_pct = ?, margem_pct = ?,
-     nome_negocio = ? WHERE id = 1`,
-    d.valor_hora_cent, d.custo_indireto_pct, d.margem_pct, d.nome_negocio,
+    `UPDATE definicoes SET ${CAMPOS_EDITAVEIS.map((c) => `${c} = ?`).join(', ')} WHERE id = 1`,
+    CAMPOS_EDITAVEIS.map((c) => d[c]),
   );
 }
 
