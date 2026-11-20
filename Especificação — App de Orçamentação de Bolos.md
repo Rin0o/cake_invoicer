@@ -44,7 +44,7 @@ React Native com Expo e TypeScript, persistência em SQLite local e build do APK
 | UI | React Native Paper | Componentes Material prontos para formulários e listas |
 | Formulários | Estado local + validação em `domain/format.ts` | Formulários pequenos; o editor do orçamento guarda ao sair de cada campo |
 | Estado | Sem biblioteca | O estado principal vive no SQLite e é recarregado ao voltar a cada ecrã |
-| PDF | expo-print + expo-asset | PDF A4 gerado a partir de template HTML; o logótipo vem com a app e é embebido em base64 |
+| PDF | expo-print | PDF A4 gerado a partir de template HTML; o logótipo vem com a app, embebido em base64 no código |
 | Partilha | expo-sharing (ficheiro) + Share.share (texto) | Folha de partilha nativa do Android |
 | Backup | expo-file-system + expo-document-picker | Exportar/importar JSON para fora da pasta da app |
 | Testes | Jest + `node:sqlite` | Testes ao cálculo e às queries/migrations/backup, sem telemóvel |
