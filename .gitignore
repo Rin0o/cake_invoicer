@@ -44,3 +44,7 @@ example
 
 # testes
 coverage/
+
+# credenciais do EAS (eas credentials -> credentials.json)
+credentials.json
+/credentials/
