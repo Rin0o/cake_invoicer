@@ -46,6 +46,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "148f011e-5344-47de-82cc-2264e80663cd"
+      }
+    },
+    "owner": "willcode4beer"
   }
 }
