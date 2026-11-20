@@ -105,6 +105,33 @@ export const MIGRATIONS: string[] = [
   ALTER TABLE definicoes DROP COLUMN contacto;
   ALTER TABLE definicoes DROP COLUMN logotipo;
   `,
+
+  // v3 — número do orçamento (sequencial por ano, nunca reutilizado) e título interno do pedido.
+  // Os orçamentos existentes são numerados por ordem de criação dentro de cada ano
+  // (a mesma regra de numerarPorAno em src/domain/numero.ts).
+  `
+  ALTER TABLE orcamentos ADD COLUMN titulo TEXT NOT NULL DEFAULT '';
+  ALTER TABLE orcamentos ADD COLUMN numero_ano INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE orcamentos ADD COLUMN numero_seq INTEGER NOT NULL DEFAULT 0;
+
+  UPDATE orcamentos SET
+    numero_ano = CAST(substr(criado_em, 1, 4) AS INTEGER),
+    numero_seq = (
+      SELECT COUNT(*) FROM orcamentos o2
+      WHERE substr(o2.criado_em, 1, 4) = substr(orcamentos.criado_em, 1, 4)
+        AND (o2.criado_em < orcamentos.criado_em
+          OR (o2.criado_em = orcamentos.criado_em AND o2.id <= orcamentos.id))
+    );
+
+  CREATE UNIQUE INDEX idx_orcamentos_numero ON orcamentos (numero_ano, numero_seq);
+
+  CREATE TABLE numeracao (
+    ano INTEGER PRIMARY KEY,
+    ultimo INTEGER NOT NULL
+  );
+  INSERT INTO numeracao (ano, ultimo)
+    SELECT numero_ano, MAX(numero_seq) FROM orcamentos GROUP BY numero_ano;
+  `,
 ];
 
 export const VERSAO_SCHEMA = MIGRATIONS.length;

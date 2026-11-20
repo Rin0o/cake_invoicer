@@ -2,9 +2,9 @@
  * HTML do orçamento em PDF para o cliente. Módulo puro (testado sem telemóvel);
  * a geração do ficheiro está em `pdf.ts`.
  *
- * Mostra só os preços finais de cada bolo e o total, como o resumo em texto.
- * Sem nome do negócio (o logótipo já o tem), nome do cliente, notas internas, detalhe de
- * ingredientes nem número de orçamento.
+ * Mostra o número do orçamento, os preços finais de cada bolo e o total, como o resumo em texto.
+ * Sem nome do negócio (o logótipo já o tem), nome do cliente, título do pedido, notas internas
+ * nem detalhe de ingredientes.
  */
 import { formatarData, formatarEuroInteiro } from '@/domain/format';
 import type { OrcamentoCalculado } from '@/domain/pricing';
@@ -12,6 +12,8 @@ import type { OrcamentoCalculado } from '@/domain/pricing';
 export interface DadosPdf {
   /** Imagem em data URI (`data:image/png;base64,…`), ou `null` sem logótipo. */
   logotipo: string | null;
+  /** Número público do orçamento ("2026-014"). */
+  numero: string;
   dataEntrega: string | null;
   /** Data em que o PDF é gerado, "aaaa-mm-dd". */
   dataEmissao: string;
@@ -40,6 +42,7 @@ export function htmlOrcamento(d: DadosPdf): string {
     .join('\n');
 
   const dados: string[] = [];
+  dados.push(`<div><span class="rotulo">Número</span> ${e(d.numero)}</div>`);
   if (d.dataEntrega) dados.push(`<div><span class="rotulo">Entrega</span> ${e(formatarData(d.dataEntrega))}</div>`);
   dados.push(`<div><span class="rotulo">Data</span> ${e(formatarData(d.dataEmissao))}</div>`);
 
@@ -84,13 +87,13 @@ ${linhasBolos}
 </html>`;
 }
 
-/** Nome do ficheiro PDF: "Orcamento-Ana-Silva-2027-03-05.pdf" (sem acentos nem espaços). */
-export function nomeFicheiroPdf(cliente: string, dataIso: string): string {
+/** Nome do ficheiro PDF: "Orcamento-2026-014-Ana-Silva.pdf" (sem acentos nem espaços). */
+export function nomeFicheiroPdf(numero: string, cliente: string): string {
   const limpo = cliente
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^A-Za-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 40);
-  return `Orcamento-${limpo ? limpo + '-' : ''}${dataIso}.pdf`;
+  return `Orcamento-${numero}${limpo ? '-' + limpo : ''}.pdf`;
 }

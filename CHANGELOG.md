@@ -38,6 +38,14 @@ Fase 2 da especificação.
 - **Calendário para a data de entrega**: o ícone de calendário no campo abre o calendário do Android (semana a
   começar à segunda); "Sem data" apaga a data. Continua a dar para escrever a data à mão.
   Também precisa do novo build.
+- **Número do orçamento** ("2026-014"): sequencial por ano, atribuído ao criar e nunca reutilizado
+  (nem depois de apagar). Aparece na lista, no editor, no PDF (e no nome do ficheiro,
+  `Orcamento-2026-014-Ana-Silva.pdf`) e no texto partilhado, para o cliente o poder indicar.
+  Os orçamentos que já existiam são numerados pela ordem em que foram criados.
+- **Pedido (interno)**: título curto do pedido (ex.: "Aniversário 5 anos"), mostrado na lista por
+  baixo do nome do cliente, para distinguir pedidos do mesmo cliente. Não vai para o PDF nem
+  para o texto.
+- A pesquisa da lista encontra também pelo pedido e pelo número.
 
 - Botão **Concluído** nos editores de orçamento e de receita: guarda o campo em edição, confirma
   que tudo ficou gravado e volta à lista. Por baixo do título aparece "A guardar…" / "Guardado ✓".
@@ -52,6 +60,9 @@ Fase 2 da especificação.
   as passadas, e no fim as que não têm data.
 - Não é possível apagar nem mudar a unidade de um item usado numa receita (a app diz em quais).
 - Backups feitos na versão 0.1.0 continuam a poder ser importados.
+- Dados (schema v3): número e título nos orçamentos, e tabela `numeracao`. Ao atualizar, a app
+  grava antes um backup automático. Backups anteriores continuam a importar (os orçamentos ficam
+  numerados ao importar).
 - **Novo ícone** da app (bolo com moeda), também no ecrã de arranque e no cabeçalho. Inclui ícone
   monocromático para os temas do Android.
 - **Visual mais colorido**: tons de azul claro, com dourado e chocolate do ícone; cabeçalhos em

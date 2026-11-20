@@ -9,7 +9,7 @@ App Android nativa, sem backend, para calcular orçamentos de bolos a partir de 
 - **Utilizador:** uma pessoa que faz bolos por encomenda, a trabalhar num único telemóvel. Não é quem desenvolve a app, por isso a interface tem de ser autoexplicativa e as atualizações fáceis de instalar.
 - **Plataforma:** Android, distribuída como APK (sem Play Store na fase inicial).
 - **Dados:** 100% locais (SQLite no dispositivo), com backup/restauro manual em JSON.
-- **Fora de âmbito:** sincronização entre dispositivos, multiutilizador, iOS, faturação certificada, IVA (preços sem IVA; o PDF indica "Orçamento — não serve de fatura"), validade e sinal do orçamento, escala automática por tamanho (a escala das receitas indica-se à mão), receitas dentro de receitas, número de orçamento (a pensar mais tarde), contactos do negócio no PDF, duplicação de orçamentos, histórico de preços.
+- **Fora de âmbito:** sincronização entre dispositivos, multiutilizador, iOS, faturação certificada, IVA (preços sem IVA; o PDF indica "Orçamento — não serve de fatura"), validade e sinal do orçamento, escala automática por tamanho (a escala das receitas indica-se à mão), receitas dentro de receitas, contactos do negócio no PDF, duplicação de orçamentos, histórico de preços.
 
 ## 2. Requisitos funcionais
 
@@ -19,14 +19,14 @@ App Android nativa, sem backend, para calcular orçamentos de bolos a partir de 
 | RF02 | Catálogo de materiais | Caixas, bases, toppers, fitas; mesmos campos que RF01 (normalmente €/un) |
 | RF03 | Atualizar preços | Editar o preço de um item substitui o valor atual; orçamentos já criados não mudam |
 | RF04 | Valor do tempo e margem | Valor/hora, margem por omissão e custo indireto configuráveis nas definições |
-| RF05 | Criar orçamento | Cliente, contacto, data de entrega, notas, margem (pré-preenchida com a das definições, ajustável); um ou mais bolos |
+| RF05 | Criar orçamento | Cliente, contacto (ambos podem vir dos contactos do telemóvel, copiados), título interno do pedido (ex.: "Aniversário 5 anos"), data de entrega (escrita ou escolhida no calendário), notas, margem (pré-preenchida com a das definições, ajustável); um ou mais bolos. Cada orçamento recebe ao ser criado um **número** sequencial por ano ("2026-014"), que nunca é reutilizado (nem depois de apagar) |
 | RF06 | Bolos do orçamento | Cada bolo tem nome (ex.: "Bolo 1 — chocolate"), lista de ingredientes/materiais com a quantidade usada e o tempo de trabalho |
 | RF07 | Linha livre | Linha com descrição e valor, para custos que não estão no catálogo |
 | RF08 | Cálculo automático | Valor de cada linha, custo por bolo, total do orçamento |
 | RF09 | Ajuste dos valores finais | Preço final de cada bolo editável e guardado; mostra a diferença face ao calculado, avisa se ficar abaixo do custo e permite repor o valor calculado |
-| RF10 | Exportar | PDF do orçamento para o cliente: logótipo (incluído na app), data, data de entrega, cada bolo com o preço final, total e "Orçamento — não serve de fatura". Sem nome do negócio (já está no logótipo), sem nome do cliente, sem contactos, sem número de orçamento, sem notas internas nem detalhe de ingredientes |
-| RF11 | Partilhar | Folha de partilha nativa (WhatsApp, email, Drive) com o PDF ou um resumo em texto. O resumo em texto tem título (com o nome do negócio), entrega, bolos e total, sem o nome do cliente e sem a nota "não serve de fatura" (que fica só no PDF) |
-| RF12 | Histórico | Lista de orçamentos com estado, filtro por estado e pesquisa por cliente. Ordem: entregas de hoje em diante (a mais próxima primeiro), depois as passadas (a mais recente primeiro), e no fim os orçamentos sem data |
+| RF10 | Exportar | PDF do orçamento para o cliente: logótipo (incluído na app), número do orçamento, data, data de entrega, cada bolo com o preço final, total e "Orçamento — não serve de fatura". Sem nome do negócio (já está no logótipo), sem nome do cliente, sem título do pedido, sem contactos, sem notas internas nem detalhe de ingredientes. Ficheiro `Orcamento-<número>-<cliente>.pdf` |
+| RF11 | Partilhar | Folha de partilha nativa (WhatsApp, email, Drive) com o PDF ou um resumo em texto. O resumo em texto tem título (com o número e o nome do negócio), entrega, bolos e total, sem o nome do cliente, sem o título do pedido e sem a nota "não serve de fatura" (que fica só no PDF) |
+| RF12 | Histórico | Lista de orçamentos com cliente, título do pedido, estado, entrega e número; filtro por estado e pesquisa por cliente, título ou número. Ordem: entregas de hoje em diante (a mais próxima primeiro), depois as passadas (a mais recente primeiro), e no fim os orçamentos sem data |
 | RF13 | Backup | Exportar e importar toda a base em JSON. Backups de versões anteriores da app continuam a importar |
 | RF14 | Estados | Rascunho, enviado, aceite, recusado, entregue; mudam-se à mão. Partilhar um rascunho (PDF ou texto) passa-o a enviado. O orçamento é editável em qualquer estado |
 | RF15 | Receitas | Nome, notas e linhas de ingredientes/materiais do catálogo (com quantidade) e linhas livres. Sem tempo de trabalho. Mostra o custo estimado com os preços atuais do catálogo |
@@ -52,7 +52,7 @@ React Native com Expo e TypeScript, persistência em SQLite local e build do APK
 
 ## 4. Modelo de dados
 
-Sete tabelas SQLite. Valores monetários guardados em **cêntimos (inteiros)**; quantidades em decimal. Os orçamentos guardam uma cópia (snapshot) dos preços e das percentagens em vigor, para não dependerem do catálogo nem das definições atuais.
+Oito tabelas SQLite. Valores monetários guardados em **cêntimos (inteiros)**; quantidades em decimal. Os orçamentos guardam uma cópia (snapshot) dos preços e das percentagens em vigor, para não dependerem do catálogo nem das definições atuais.
 
 | Tabela | Campos principais | Notas |
 | --- | --- | --- |
@@ -60,7 +60,8 @@ Sete tabelas SQLite. Valores monetários guardados em **cêntimos (inteiros)**; 
 | definicoes | valor\_hora\_cent, custo\_indireto\_pct, margem\_pct, moeda, nome\_negocio | Linha única. `margem_pct` é o valor por omissão para novos orçamentos |
 | receitas | id, nome, notas, atualizado\_em | Só quantidades; os preços vêm sempre do catálogo atual |
 | receita\_linhas | id, receita\_id, item\_id (nulo em linha livre), livre, descricao, unidade\_entrada, quantidade, valor\_cent, ordem | Quantidade na unidade do item. Um item usado numa receita não pode ser apagado nem mudar de unidade |
-| orcamentos | id, cliente, contacto, data\_entrega, estado, notas, valor\_hora\_snap, indireto\_pct\_snap, margem\_pct, total\_calc\_cent, total\_cent, criado\_em, atualizado\_em | `estado`: rascunho / enviado / aceite / recusado / entregue. `margem_pct` copiada das definições e editável. `total_cent` = soma dos preços finais dos bolos |
+| numeracao | ano, ultimo | Último número de orçamento usado em cada ano, para nunca reutilizar um número |
+| orcamentos | id, numero\_ano, numero\_seq, cliente, titulo, contacto, data\_entrega, estado, notas, valor\_hora\_snap, indireto\_pct\_snap, margem\_pct, total\_calc\_cent, total\_cent, criado\_em, atualizado\_em | Número = `numero_ano`-`numero_seq` (único). `titulo` é interno. `estado`: rascunho / enviado / aceite / recusado / entregue. `margem_pct` copiada das definições e editável. `total_cent` = soma dos preços finais dos bolos |
 | orcamento\_bolos | id, orcamento\_id, nome, ordem, tempo\_min, custo\_cent, preco\_calc\_cent, preco\_final\_cent | Um orçamento tem 1..n bolos. Um bolo de andares é um só bolo. `preco_final` nulo = usa o calculado |
 | orcamento\_linhas | id, bolo\_id, item\_id (nulo em linha livre), descricao\_snap, unidade\_snap, quantidade, preco\_unit\_snap\_cent, valor\_cent | Nome, unidade e preço copiados do item no momento em que a linha é adicionada |
 

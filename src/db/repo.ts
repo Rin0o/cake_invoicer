@@ -33,7 +33,12 @@ export interface Definicoes {
 
 export interface Orcamento {
   id: number;
+  /** Número público, ver `formatarNumero`. */
+  numero_ano: number;
+  numero_seq: number;
   cliente: string;
+  /** Título interno do pedido (ex.: "Aniversário 5 anos"). Não vai para o PDF nem o texto. */
+  titulo: string;
   contacto: string;
   data_entrega: string | null;
   estado: EstadoOrcamento;
@@ -195,8 +200,11 @@ function padraoLike(texto: string) {
   return `%${texto.replace(/[\\%_]/g, (c) => '\\' + c)}%`;
 }
 
+/** O número como texto em SQL, igual a `formatarNumero` (para a pesquisa). */
+const SQL_NUMERO = `(o.numero_ano || '-' || printf('%03d', o.numero_seq))`;
+
 /**
- * Histórico de orçamentos, com pesquisa por cliente e filtro por estado.
+ * Histórico de orçamentos, com pesquisa por cliente, título ou número, e filtro por estado.
  * Ordem: entregas de hoje em diante (a mais próxima primeiro), depois as passadas
  * (a mais recente primeiro), e no fim os orçamentos sem data de entrega.
  */
@@ -205,7 +213,8 @@ export function listarOrcamentos(
   opcoes: { pesquisa?: string; estado?: EstadoOrcamento | null; hoje?: string } = {},
 ) {
   const hoje = opcoes.hoje ?? hojeIso();
-  const args: (string | number)[] = [padraoLike(opcoes.pesquisa ?? '')];
+  const padrao = padraoLike((opcoes.pesquisa ?? '').trim());
+  const args: (string | number)[] = [padrao, padrao, padrao];
   let filtroEstado = '';
   if (opcoes.estado) {
     filtroEstado = 'AND o.estado = ?';
@@ -215,7 +224,8 @@ export function listarOrcamentos(
   return db.getAllAsync<ResumoOrcamento>(
     `SELECT o.*, (SELECT COUNT(*) FROM orcamento_bolos b WHERE b.orcamento_id = o.id) AS n_bolos
      FROM orcamentos o
-     WHERE o.cliente LIKE ? ESCAPE '\\' ${filtroEstado}
+     WHERE (o.cliente LIKE ? ESCAPE '\\' OR o.titulo LIKE ? ESCAPE '\\' OR ${SQL_NUMERO} LIKE ? ESCAPE '\\')
+       ${filtroEstado}
      ORDER BY
        CASE WHEN o.data_entrega IS NULL THEN 2 WHEN o.data_entrega >= ? THEN 0 ELSE 1 END,
        CASE WHEN o.data_entrega >= ? THEN o.data_entrega END ASC,
@@ -225,16 +235,43 @@ export function listarOrcamentos(
   );
 }
 
-/** Cria um orçamento com um bolo vazio, copiando valor/hora, indiretos e margem das definições. */
-export async function criarOrcamento(db: SQLiteDatabase): Promise<number> {
+/**
+ * Próximo número do ano. Usa o maior entre o contador e os orçamentos que existem, para nunca
+ * repetir um número (mesmo depois de apagar o último, ou de importar um backup).
+ */
+async function proximoNumero(db: SQLiteDatabase, ano: number): Promise<number> {
+  const r = await db.getFirstAsync<{ n: number }>(
+    `SELECT MAX(
+       COALESCE((SELECT ultimo FROM numeracao WHERE ano = ?), 0),
+       COALESCE((SELECT MAX(numero_seq) FROM orcamentos WHERE numero_ano = ?), 0)
+     ) + 1 AS n`,
+    ano, ano,
+  );
+  const n = r?.n ?? 1;
+  await db.runAsync(
+    `INSERT INTO numeracao (ano, ultimo) VALUES (?, ?)
+     ON CONFLICT (ano) DO UPDATE SET ultimo = excluded.ultimo`,
+    ano, n,
+  );
+  return n;
+}
+
+/**
+ * Cria um orçamento com um bolo vazio, copiando valor/hora, indiretos e margem das definições,
+ * e atribui o número seguinte do ano.
+ */
+export async function criarOrcamento(db: SQLiteDatabase, opcoes: { hoje?: string } = {}): Promise<number> {
   const d = await obterDefinicoes(db);
+  const ano = Number((opcoes.hoje ?? hojeIso()).slice(0, 4));
   let id = 0;
   await db.withTransactionAsync(async () => {
     const t = agora();
+    const seq = await proximoNumero(db, ano);
     const r = await db.runAsync(
-      `INSERT INTO orcamentos (valor_hora_cent, indireto_pct, margem_pct, criado_em, atualizado_em)
-       VALUES (?, ?, ?, ?, ?)`,
-      d.valor_hora_cent, d.custo_indireto_pct, d.margem_pct, t, t,
+      `INSERT INTO orcamentos
+       (numero_ano, numero_seq, valor_hora_cent, indireto_pct, margem_pct, criado_em, atualizado_em)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      ano, seq, d.valor_hora_cent, d.custo_indireto_pct, d.margem_pct, t, t,
     );
     id = r.lastInsertRowId;
     await db.runAsync(
@@ -292,7 +329,9 @@ export async function recalcularTotais(db: SQLiteDatabase, orcamentoId: number) 
 export async function atualizarOrcamento(
   db: SQLiteDatabase,
   id: number,
-  campos: Partial<Pick<Orcamento, 'cliente' | 'contacto' | 'data_entrega' | 'notas' | 'margem_pct' | 'estado'>>,
+  campos: Partial<
+    Pick<Orcamento, 'cliente' | 'titulo' | 'contacto' | 'data_entrega' | 'notas' | 'margem_pct' | 'estado'>
+  >,
 ) {
   const chaves = Object.keys(campos) as (keyof typeof campos)[];
   if (chaves.length === 0) return;
