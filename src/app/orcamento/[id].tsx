@@ -26,6 +26,7 @@ import {
   lerDecimal,
 } from '@/domain/format';
 import { formatarNumero } from '@/domain/numero';
+import { formatarReferencia } from '@/domain/referencia';
 import { partilharPdf } from '@/pdf/pdf';
 import { resumoTexto } from '@/share/texto';
 import { BoloCard } from '@/ui/BoloCard';
@@ -72,6 +73,7 @@ function DadosCliente({ o, guardarCampos }: { o: OrcamentoCompleto; guardarCampo
   if (!aberto) {
     const detalhes = [
       `Nº ${formatarNumero(o)}`,
+      `Ref. ${formatarReferencia(o)}`,
       o.data_entrega ? `Entrega ${formatarData(o.data_entrega)}` : 'Sem data de entrega',
       o.contacto,
     ].filter(Boolean);
@@ -112,7 +114,7 @@ function DadosCliente({ o, guardarCampos }: { o: OrcamentoCompleto; guardarCampo
           <Text variant="titleMedium">Cliente</Text>
           <View style={styles.acoes}>
             <Text variant="labelLarge" style={styles.numero}>
-              Nº {formatarNumero(o)}
+              Nº {formatarNumero(o)} · Ref. {formatarReferencia(o)}
             </Text>
             <IconButton icon="chevron-up" onPress={alternar} accessibilityLabel="Fechar dados do cliente" />
           </View>
@@ -226,7 +228,7 @@ export default function EditarOrcamento() {
               tiktok: d.contacto_tiktok,
               site: d.contacto_site,
             },
-            numero: formatarNumero(o),
+            referencia: formatarReferencia(o),
             dataEntrega: o.data_entrega,
             bolos: o.bolos,
             calculo: calc,
@@ -239,7 +241,7 @@ export default function EditarOrcamento() {
         await Share.share({
           message: resumoTexto({
             nomeNegocio: d.nome_negocio,
-            numero: formatarNumero(o),
+            referencia: formatarReferencia(o),
             dataEntrega: o.data_entrega,
             bolos: o.bolos,
             calculo: calc,

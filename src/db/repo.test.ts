@@ -4,6 +4,7 @@ import { migrar, MIGRATIONS, VERSAO_SCHEMA } from '@/db/migrations';
 import * as repo from '@/db/repo';
 import { abrirBaseDeTeste } from '@/db/testDb';
 import { formatarNumero } from '@/domain/numero';
+import { formatarReferencia } from '@/domain/referencia';
 import { paraUnidadeItem } from '@/domain/units';
 
 jest.mock('expo-file-system', () => ({}));
@@ -198,6 +199,19 @@ describe('orçamentos', () => {
     expect(await ids('batiz')).toEqual([b]);
     expect(await ids('2026-001')).toEqual([a]);
     expect(await ids(' 002 ')).toEqual([b]);
+  });
+
+  it('pesquisa pela referência do cliente, com ou sem ano', async () => {
+    const db = await novaBase();
+    const a = await repo.criarOrcamento(db, { hoje: '2026-11-19' }); // 2026-001 = 2026-QJQX
+    const b = await repo.criarOrcamento(db, { hoje: '2026-11-19' }); // 2026-002 = 2026-95G5
+    const c = await repo.criarOrcamento(db, { hoje: '2027-01-02' }); // 2027-001 = 2027-VTJ9
+    const ids = async (pesquisa: string) => (await repo.listarOrcamentos(db, { pesquisa })).map((o) => o.id);
+    expect(formatarReferencia((await repo.obterOrcamento(db, b))!)).toBe('2026-95G5');
+    expect(await ids('2026-QJQX')).toEqual([a]);
+    expect(await ids('95g5')).toEqual([b]);
+    expect(await ids('VTJ9')).toEqual([c]);
+    expect(await ids('2026-VTJ9')).toEqual([]); // é a referência de 2027
   });
 
   it('numera por ano, sem reutilizar números apagados', async () => {

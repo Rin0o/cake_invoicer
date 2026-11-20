@@ -53,6 +53,8 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
 - [ ] **Pedido (interno)**: escrever "Aniversário 5 anos" → aparece na lista por baixo do nome e no
       cartão do cliente fechado. Sem pedido, a lista fica como antes (sem linha vazia).
 - [ ] Pesquisar na lista pelo pedido ("aniv") e pelo número ("2026-004" ou "004").
+- [ ] O cartão do cliente mostra "Nº 2026-004 · Ref. 2026-XXXX". Pesquisar pela referência, com e
+      sem o ano ("2026-XXXX" e "xxxx"), encontra o orçamento.
 - [ ] Cada cartão da lista: à esquerda cliente, pedido, estado e 📅 data de entrega; à direita o
       número por cima do total. Com um nome ou pedido comprido, o número e o total não são cortados.
 - [ ] Preencher o cliente, o contacto e a data (`5/3/27` → `05/03/2027`); data inválida mostra erro.
@@ -111,11 +113,11 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
 
 ## Partilha
 
-- [ ] **Enviar PDF** → WhatsApp e → Drive: o ficheiro chama-se `Orcamento-<número>-<cliente>.pdf`.
-- [ ] O PDF abre em A4 com o nome do negócio no topo, número, data, entrega, bolos com o preço
+- [ ] **Enviar PDF** → WhatsApp e → Drive: o ficheiro chama-se `Orcamento-<referência>-<cliente>.pdf`.
+- [ ] O PDF abre em A4 com o nome do negócio no topo, referência (**não** o número interno), data, entrega, bolos com o preço
       final e total certo, e os contactos no fundo. Acentos corretos. **Sem** o nome do cliente.
 - [ ] Sem nome do negócio nem contactos: o PDF começa em "Orçamento" e não tem linhas vazias.
-- [ ] O texto começa por "*Orçamento nº 2026-004 — <negócio>*".
+- [ ] O texto começa por "*Orçamento ref. 2026-XXXX — <negócio>*", com a mesma referência do PDF.
 - [ ] Orçamento sem data de entrega: o PDF não mostra linhas vazias.
 - [ ] Muitos bolos (ex.: 15): o PDF passa para a segunda página sem cortar linhas a meio.
 - [ ] **Enviar em texto** → WhatsApp: o texto chega formatado (negrito no título e no total).

@@ -16,7 +16,7 @@ function dados(extra: Partial<DadosPdf> = {}): DadosPdf {
     nomeNegocio: 'Doces da Avó',
     cor: 'lilas',
     contactos: { ...SEM_CONTACTOS, telefone: '912 345 678', instagram: '@docesdaavo' },
-    numero: '2027-014',
+    referencia: '2027-QJQX',
     dataEntrega: '2027-03-05',
     dataEmissao: '2027-02-20',
     bolos: [{ nome: 'Bolo de chocolate' }, { nome: 'Cupcakes' }],
@@ -32,7 +32,8 @@ describe('htmlOrcamento', () => {
     expect(html).not.toContain('<img');
     expect(html).not.toContain('Cliente');
     expect(html).toContain('<span class="contacto">912 345 678</span> &nbsp;·&nbsp; <span class="contacto">Instagram @docesdaavo</span>');
-    expect(html).toMatch(/Número<\/span> 2027-014/);
+    expect(html).toMatch(/Referência<\/span> 2027-QJQX/);
+    expect(html).not.toContain('Número');
     expect(html).toContain('05/03/2027');
     expect(html).toContain('20/02/2027');
     expect(html).toMatch(/Bolo de chocolate<\/td><td class="valor">45 €/);
@@ -88,12 +89,12 @@ describe('escaparHtml', () => {
 
 describe('nomeFicheiroPdf', () => {
   it('número e cliente, sem acentos nem espaços', () => {
-    expect(nomeFicheiroPdf('2027-014', 'Ana Conceição')).toBe('Orcamento-2027-014-Ana-Conceicao.pdf');
-    expect(nomeFicheiroPdf('2027-014', '  / Rui! ')).toBe('Orcamento-2027-014-Rui.pdf');
+    expect(nomeFicheiroPdf('2027-QJQX', 'Ana Conceição')).toBe('Orcamento-2027-QJQX-Ana-Conceicao.pdf');
+    expect(nomeFicheiroPdf('2027-QJQX', '  / Rui! ')).toBe('Orcamento-2027-QJQX-Rui.pdf');
   });
 
   it('sem cliente', () => {
-    expect(nomeFicheiroPdf('2027-014', '')).toBe('Orcamento-2027-014.pdf');
+    expect(nomeFicheiroPdf('2027-QJQX', '')).toBe('Orcamento-2027-QJQX.pdf');
   });
 });
 

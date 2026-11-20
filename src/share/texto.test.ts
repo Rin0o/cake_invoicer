@@ -14,14 +14,14 @@ describe('resumoTexto', () => {
   it('mostra negócio, entrega, bolos e total (sem o cliente)', () => {
     const texto = resumoTexto({
       nomeNegocio: 'Doces da Ana',
-      numero: '2027-014',
+      referencia: '2027-QJQX',
       dataEntrega: '2027-03-05',
       bolos: [{ nome: 'Bolo de chocolate' }, { nome: 'Cupcakes' }],
       calculo: calculo([null, null], [4500, 2000]),
     });
     expect(texto).toBe(
       [
-        '*Orçamento nº 2027-014 — Doces da Ana*',
+        '*Orçamento ref. 2027-QJQX — Doces da Ana*',
         '',
         'Entrega: 05/03/2027',
         '',
@@ -36,7 +36,7 @@ describe('resumoTexto', () => {
   it('usa os preços finais editados e não revela o calculado', () => {
     const texto = resumoTexto({
       nomeNegocio: '',
-      numero: '2027-001',
+      referencia: '2027-VTJ9',
       dataEntrega: null,
       bolos: [{ nome: 'Bolo 1' }],
       calculo: calculo([5000], [4500]),
@@ -44,6 +44,6 @@ describe('resumoTexto', () => {
     expect(texto).toContain('• Bolo 1: 50 €');
     expect(texto).toContain('*Total: 50 €*');
     expect(texto).not.toContain('45');
-    expect(texto.startsWith('*Orçamento nº 2027-001*\n\n• Bolo 1')).toBe(true);
+    expect(texto.startsWith('*Orçamento ref. 2027-VTJ9*\n\n• Bolo 1')).toBe(true);
   });
 });

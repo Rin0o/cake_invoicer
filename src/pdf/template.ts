@@ -30,8 +30,8 @@ export interface DadosPdf {
   /** Id da cor, ver `CORES_PDF`. */
   cor: string;
   contactos: ContactosNegocio;
-  /** Número público do orçamento ("2026-014"). */
-  numero: string;
+  /** Referência do orçamento para o cliente ("2026-QJQX"), ver `formatarReferencia`. */
+  referencia: string;
   dataEntrega: string | null;
   /** Data em que o PDF é gerado, "aaaa-mm-dd". */
   dataEmissao: string;
@@ -89,7 +89,7 @@ export function htmlOrcamento(d: DadosPdf): string {
     .join('\n');
 
   const dados: string[] = [];
-  dados.push(`<div><span class="rotulo">Número</span> ${e(d.numero)}</div>`);
+  dados.push(`<div><span class="rotulo">Referência</span> ${e(d.referencia)}</div>`);
   if (d.dataEntrega) dados.push(`<div><span class="rotulo">Entrega</span> ${e(formatarData(d.dataEntrega))}</div>`);
   dados.push(`<div><span class="rotulo">Data</span> ${e(formatarData(d.dataEmissao))}</div>`);
 
@@ -106,7 +106,7 @@ export function htmlOrcamento(d: DadosPdf): string {
   .marca { color: ${cor.principal}; font-family: serif; font-size: 26pt; line-height: 1.2; }
   h1 { color: ${cor.principal}; font-size: 20pt; font-weight: normal; margin: 4mm 0 6mm; text-align: center; letter-spacing: 1px; }
   .dados { margin-bottom: 8mm; line-height: 1.7; }
-  .rotulo { display: inline-block; width: 22mm; color: ${cor.secundaria}; }
+  .rotulo { display: inline-block; width: 28mm; color: ${cor.secundaria}; }
   table { width: 100%; border-collapse: collapse; }
   th { text-align: left; font-weight: normal; color: ${cor.secundaria}; border-bottom: 1px solid ${cor.linhas}; padding: 2mm 0; }
   td { padding: 3mm 0; border-bottom: 1px solid ${cor.linhas}; }
@@ -139,13 +139,13 @@ ${contactos.length ? `<div class="contactos">${contactos.map((c) => `<span class
 </html>`;
 }
 
-/** Nome do ficheiro PDF: "Orcamento-2026-014-Ana-Silva.pdf" (sem acentos nem espaços). */
-export function nomeFicheiroPdf(numero: string, cliente: string): string {
+/** Nome do ficheiro PDF: "Orcamento-2026-QJQX-Ana-Silva.pdf" (sem acentos nem espaços). */
+export function nomeFicheiroPdf(referencia: string, cliente: string): string {
   const limpo = cliente
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^A-Za-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 40);
-  return `Orcamento-${numero}${limpo ? '-' + limpo : ''}.pdf`;
+  return `Orcamento-${referencia}${limpo ? '-' + limpo : ''}.pdf`;
 }

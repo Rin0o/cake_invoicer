@@ -19,14 +19,14 @@ App Android nativa, sem backend, para calcular orçamentos de bolos a partir de 
 | RF02 | Catálogo de materiais | Caixas, bases, toppers, fitas; mesmos campos que RF01 (normalmente €/un) |
 | RF03 | Atualizar preços | Editar o preço de um item substitui o valor atual; orçamentos já criados não mudam |
 | RF04 | Valor do tempo e margem | Valor/hora, margem por omissão e custo indireto configuráveis nas definições |
-| RF05 | Criar orçamento | Cliente, contacto (ambos podem vir dos contactos do telemóvel, copiados), título interno do pedido (ex.: "Aniversário 5 anos"), data de entrega (escrita ou escolhida no calendário), notas, margem (pré-preenchida com a das definições, ajustável); um ou mais bolos. Cada orçamento recebe ao ser criado um **número** sequencial por ano ("2026-014"), que nunca é reutilizado (nem depois de apagar) |
+| RF05 | Criar orçamento | Cliente, contacto (ambos podem vir dos contactos do telemóvel, copiados), título interno do pedido (ex.: "Aniversário 5 anos"), data de entrega (escrita ou escolhida no calendário), notas, margem (pré-preenchida com a das definições, ajustável); um ou mais bolos. Cada orçamento recebe ao ser criado um **número** sequencial por ano ("2026-014"), que nunca é reutilizado (nem depois de apagar). O número é interno: o cliente recebe uma **referência** ("2026-QJQX") calculada a partir dele, que não revela quantos orçamentos há |
 | RF06 | Bolos do orçamento | Cada bolo tem nome (ex.: "Bolo 1 — chocolate"), lista de ingredientes/materiais com a quantidade usada e o tempo de trabalho |
 | RF07 | Linha livre | Linha com descrição e valor, para custos que não estão no catálogo |
 | RF08 | Cálculo automático | Valor de cada linha, custo por bolo, total do orçamento |
 | RF09 | Ajuste dos valores finais | Preço final de cada bolo editável e guardado; mostra a diferença face ao calculado, avisa se ficar abaixo do custo e permite repor o valor calculado |
-| RF10 | Exportar | PDF do orçamento para o cliente: nome do negócio no topo (se preenchido), número do orçamento, data, data de entrega, cada bolo com o preço final, total, contactos do negócio no fundo (telefone, email, Instagram, Facebook, TikTok, site; só os preenchidos) e "Orçamento — não serve de fatura". Cor escolhida numa paleta de 8 opções nas Definições. Sem logótipo, sem nome do cliente, sem título do pedido, sem notas internas nem detalhe de ingredientes. O nome, a cor e os contactos são sempre os atuais, também em orçamentos antigos. Ficheiro `Orcamento-<número>-<cliente>.pdf` |
-| RF11 | Partilhar | Folha de partilha nativa (WhatsApp, email, Drive) com o PDF ou um resumo em texto. O resumo em texto tem título (com o número e o nome do negócio), entrega, bolos e total, sem o nome do cliente, sem o título do pedido e sem a nota "não serve de fatura" (que fica só no PDF) |
-| RF12 | Histórico | Lista de orçamentos com cliente, título do pedido, estado, entrega e número; filtro por estado e pesquisa por cliente, título ou número. Ordem: entregas de hoje em diante (a mais próxima primeiro), depois as passadas (a mais recente primeiro), e no fim os orçamentos sem data |
+| RF10 | Exportar | PDF do orçamento para o cliente: nome do negócio no topo (se preenchido), referência do orçamento (não o número interno), data, data de entrega, cada bolo com o preço final, total, contactos do negócio no fundo (telefone, email, Instagram, Facebook, TikTok, site; só os preenchidos) e "Orçamento — não serve de fatura". Cor escolhida numa paleta de 8 opções nas Definições. Sem logótipo, sem nome do cliente, sem título do pedido, sem notas internas nem detalhe de ingredientes. O nome, a cor e os contactos são sempre os atuais, também em orçamentos antigos. Ficheiro `Orcamento-<referência>-<cliente>.pdf` |
+| RF11 | Partilhar | Folha de partilha nativa (WhatsApp, email, Drive) com o PDF ou um resumo em texto. O resumo em texto tem título (com a referência e o nome do negócio), entrega, bolos e total, sem o nome do cliente, sem o título do pedido e sem a nota "não serve de fatura" (que fica só no PDF) |
+| RF12 | Histórico | Lista de orçamentos com cliente, título do pedido, estado, entrega e número; filtro por estado e pesquisa por cliente, título, número ou referência. Ordem: entregas de hoje em diante (a mais próxima primeiro), depois as passadas (a mais recente primeiro), e no fim os orçamentos sem data |
 | RF13 | Backup | Exportar e importar toda a base em JSON. Backups de versões anteriores da app continuam a importar |
 | RF14 | Estados | Rascunho, enviado, aceite, recusado, entregue; mudam-se à mão. Partilhar um rascunho (PDF ou texto) passa-o a enviado. O orçamento é editável em qualquer estado |
 | RF15 | Receitas | Nome, notas e linhas de ingredientes/materiais do catálogo (com quantidade) e linhas livres. Sem tempo de trabalho. Mostra o custo estimado com os preços atuais do catálogo |
@@ -131,6 +131,7 @@ src/
   domain/receitas.ts      # escala das receitas
   domain/estados.ts       # estados do orçamento
   domain/numero.ts        # número do orçamento (por ano)
+  domain/referencia.ts    # referência para o cliente, calculada a partir do número
   domain/contacto.ts      # telefone/email de um contacto do telemóvel
   domain/units.ts         # conversões g↔kg, ml↔l
   domain/format.ts        # leitura/formatação de euros, decimais, tempo e datas

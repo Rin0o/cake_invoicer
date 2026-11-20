@@ -24,7 +24,7 @@ export async function partilharPdf(dados: DadosPdf, cliente: string) {
 
   const dir = new Directory(Paths.cache, 'pdf');
   if (!dir.exists) dir.create({ intermediates: true });
-  const destino = new File(dir, nomeFicheiroPdf(dados.numero, cliente));
+  const destino = new File(dir, nomeFicheiroPdf(dados.referencia, cliente));
   destino.create({ overwrite: true });
   await destino.write(Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)));
 

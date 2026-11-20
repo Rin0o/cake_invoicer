@@ -1,7 +1,7 @@
 /**
  * Número do orçamento: sequencial por ano ("2026-014"). Atribuído ao criar e nunca
- * reutilizado (o último número de cada ano fica na tabela `numeracao`). É público: aparece
- * no PDF e no texto enviados ao cliente.
+ * reutilizado (o último número de cada ano fica na tabela `numeracao`). É interno: o cliente
+ * recebe a referência ("2026-QJQX", ver referencia.ts), que não revela quantos orçamentos há.
  */
 
 export interface NumeroOrcamento {

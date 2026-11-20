@@ -79,7 +79,13 @@ Um orçamento antigo tem de dar sempre o mesmo valor. Por isso:
   maior entre `numeracao.ultimo` e o maior `numero_seq` do ano, mais 1, por isso apagar um
   orçamento ou importar um backup nunca faz repetir números. Formato em
   [src/domain/numero.ts](../src/domain/numero.ts) (`formatarNumero`); `numerarPorAno` aplica a regra
-  da migração v3 aos backups antigos. O número é público (PDF e texto).
+  da migração v3 aos backups antigos. O número é interno.
+- **Referência para o cliente** ([src/domain/referencia.ts](../src/domain/referencia.ts)): o PDF, o
+  texto e o nome do ficheiro levam `formatarReferencia` ("2026-QJQX") em vez do número, para o
+  cliente não deduzir quantos orçamentos há. É uma permutação do número (rede de Feistel com o ano
+  na chave), sem coluna na base: cada número tem um só código e vice-versa. A pesquisa converte a
+  referência no número (`numeroDaReferencia`). **Nunca mudar a fórmula**: as referências já
+  enviadas deixariam de bater certo (um teste fixa valores conhecidos).
 - **Pedido** (`orcamentos.titulo`): só interno; `DadosPdf` e `DadosResumo` não o recebem.
 - **Contactos** ([src/ui/EscolherContacto.tsx](../src/ui/EscolherContacto.tsx), `expo-contacts`):
   `Contact.presentPicker()` só devolve o id, por isso é preciso `READ_CONTACTS` para ler os números.
