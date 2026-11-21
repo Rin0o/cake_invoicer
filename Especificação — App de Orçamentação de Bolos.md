@@ -4,7 +4,7 @@ Nov 19, 2026 · @Pedro Rino
 
 ## 1. Visão geral e âmbito
 
-App Android nativa, sem backend, para calcular orçamentos de bolos a partir de um catálogo local de ingredientes e materiais com preço por unidade (€/kg, €/l, €/un), das quantidades efetivamente usadas em cada bolo e do tempo de trabalho. O resultado é partilhado por WhatsApp ou ficheiro.
+**CakeForCash** é uma app Android nativa, sem backend, para calcular orçamentos de bolos a partir de um catálogo local de ingredientes e materiais com preço por unidade (€/kg, €/l, €/un), das quantidades efetivamente usadas em cada bolo e do tempo de trabalho. O resultado é partilhado por WhatsApp ou ficheiro.
 
 - **Utilizador:** uma pessoa que faz bolos por encomenda, a trabalhar num único telemóvel. Não é quem desenvolve a app, por isso a interface tem de ser autoexplicativa e as atualizações fáceis de instalar.
 - **Plataforma:** Android, distribuída como APK (sem Play Store na fase inicial).

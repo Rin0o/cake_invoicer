@@ -16,6 +16,10 @@ import { numerarPorAno, ultimosPorAno, type NumeroOrcamento } from '@/domain/num
 import { textos } from '@/i18n';
 import { COR_PDF_POR_OMISSAO } from '@/pdf/cores';
 
+/**
+ * Identifica o formato do ficheiro de backup, não o nome da app (que agora é CakeForCash).
+ * Não mudar: os backups já exportados deixariam de ser aceites no restauro.
+ */
 const APP_ID = 'orcamentos-bolos';
 const MAX_BACKUPS_AUTOMATICOS = 10;
 
@@ -93,7 +97,7 @@ async function gravar(dir: Directory, nome: string, conteudo: string) {
 /** Grava o backup num ficheiro e abre a folha de partilha. */
 export async function exportarBackup(db: SQLiteDatabase) {
   const backup = await gerarBackup(db);
-  const f = await gravar(new Directory(Paths.cache, 'export'), `orcamentos-bolos-${carimbo()}.json`, JSON.stringify(backup));
+  const f = await gravar(new Directory(Paths.cache, 'export'), `cakeforcash-${carimbo()}.json`, JSON.stringify(backup));
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error(textos().comum.partilhaIndisponivel);
   }

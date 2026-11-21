@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Orçamentos de Bolos",
+    "name": "CakeForCash",
     "slug": "orcamentos-bolos",
     "version": "0.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "orcamentosbolos",
+    "scheme": "cakeforcash",
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.cakeinvoicer.orcamentos",
