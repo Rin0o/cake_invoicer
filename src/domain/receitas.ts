@@ -5,6 +5,7 @@
  * A escala (ex.: 1,5) multiplica só as quantidades dos ingredientes. Materiais (caixa,
  * base, topper) e linhas livres ficam iguais: um bolo maior continua a levar uma caixa.
  */
+import { textos } from '@/i18n';
 
 export interface LinhaReceitaInput {
   livre: boolean;
@@ -22,7 +23,7 @@ export function escalaAplicaSe(l: Pick<LinhaReceitaInput, 'livre' | 'tipo'>): bo
 
 /** Devolve as linhas com a escala aplicada às quantidades dos ingredientes. */
 export function escalarLinhas<T extends LinhaReceitaInput>(linhas: T[], escala: number): T[] {
-  if (!(escala > 0)) throw new Error('A escala tem de ser maior que zero.');
+  if (!(escala > 0)) throw new Error(textos().receita.escalaMaiorQueZero);
   return linhas.map((l) => (escalaAplicaSe(l) ? { ...l, quantidade: l.quantidade * escala } : l));
 }
 

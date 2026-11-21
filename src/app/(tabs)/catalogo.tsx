@@ -6,6 +6,7 @@ import { FAB, Searchbar, SegmentedButtons, Text } from 'react-native-paper';
 
 import { listarItens, type Item, type TipoItem } from '@/db/repo';
 import { formatarPrecoUnidade } from '@/domain/format';
+import { textos } from '@/i18n';
 import { CartaoLista } from '@/ui/CartaoLista';
 import { mostrarErro } from '@/ui/confirmar';
 import { espaco, tema } from '@/ui/theme';
@@ -28,6 +29,7 @@ export default function Catalogo() {
   const [tipo, setTipo] = useState<TipoItem>('ingrediente');
   const [pesquisa, setPesquisa] = useState('');
   const [itens, setItens] = useState<Item[]>([]);
+  const t = textos();
 
   useFocusEffect(
     useCallback(() => {
@@ -36,9 +38,9 @@ export default function Catalogo() {
   );
 
   const filtrados = useMemo(() => {
-    const p = pesquisa.trim().toLocaleLowerCase('pt');
-    return p ? itens.filter((i) => i.nome.toLocaleLowerCase('pt').includes(p)) : itens;
-  }, [itens, pesquisa]);
+    const p = pesquisa.trim().toLocaleLowerCase(t.locale);
+    return p ? itens.filter((i) => i.nome.toLocaleLowerCase(t.locale).includes(p)) : itens;
+  }, [itens, pesquisa, t.locale]);
 
   return (
     <View style={styles.ecra}>
@@ -47,11 +49,11 @@ export default function Catalogo() {
         onValueChange={(v) => setTipo(v as TipoItem)}
         style={styles.segmentos}
         buttons={[
-          { value: 'ingrediente', label: 'Ingredientes' },
-          { value: 'material', label: 'Materiais' },
+          { value: 'ingrediente', label: t.catalogo.ingredientes },
+          { value: 'material', label: t.catalogo.materiais },
         ]}
       />
-      <Searchbar placeholder="Pesquisar" value={pesquisa} onChangeText={setPesquisa} style={styles.pesquisa} />
+      <Searchbar placeholder={t.comum.pesquisar} value={pesquisa} onChangeText={setPesquisa} style={styles.pesquisa} />
       <FlatList
         data={filtrados}
         keyExtractor={(i) => String(i.id)}
@@ -59,16 +61,16 @@ export default function Catalogo() {
         ListEmptyComponent={
           <Text style={styles.vazio} variant="bodyLarge">
             {pesquisa
-              ? 'Nada encontrado.'
+              ? t.comum.nadaEncontrado
               : tipo === 'ingrediente'
-                ? 'Ainda não há ingredientes.\nToque em + para adicionar.'
-                : 'Ainda não há materiais (caixas, bases, toppers…).\nToque em + para adicionar.'}
+                ? t.catalogo.vazioIngredientes
+                : t.catalogo.vazioMateriais}
           </Text>
         }
         renderItem={({ item: i }) => (
           <CartaoLista
             titulo={i.nome}
-            descricao={i.ativo ? undefined : 'Inativo'}
+            descricao={i.ativo ? undefined : t.catalogo.inativo}
             esbatido={!i.ativo}
             {...ICONE_TIPO[i.tipo]}
             direita={

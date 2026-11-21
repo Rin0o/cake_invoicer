@@ -18,6 +18,12 @@ Cada versão distribuída tem também um `android.versionCode` (em `app.json`) m
 
 ### Adicionado
 
+- **Idiomas**: a app passa a existir em português, inglês, espanhol e francês. Escolhe-se em
+  Definições → Idioma e aplica-se a tudo: ecrãs, PDF, texto para o cliente e nome do ficheiro. Em
+  inglês os preços escrevem-se `€12.50`. Uma instalação nova segue o idioma do telemóvel (ou
+  inglês, se for outro); quem já usava a app continua em português. O idioma vai no backup.
+  Os nomes escritos por quem usa a app (bolos, itens, receitas) não são traduzidos.
+
 - **Abertos, Entregues e Recusados**: a lista de orçamentos passa a mostrar só os abertos
   (rascunho, enviado, aceite). Os entregues e os recusados ficam cada um no seu separador, do mais
   recente para o mais antigo, e cada separador mostra quantos orçamentos tem. A pesquisa continua

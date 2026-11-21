@@ -2,6 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Tabs } from 'expo-router';
 import { Image, StyleSheet, type ColorValue } from 'react-native';
 
+import { textos } from '@/i18n';
 import { corCabecalho, espaco, tema } from '@/ui/theme';
 
 type Icone = keyof typeof MaterialCommunityIcons.glyphMap;
@@ -24,6 +25,7 @@ function Logo() {
 }
 
 export default function TabLayout() {
+  const t = textos().ecras;
   return (
     <Tabs
       screenOptions={{
@@ -39,11 +41,11 @@ export default function TabLayout() {
       }}>
       <Tabs.Screen
         name="index"
-        options={{ title: 'Orçamentos', tabBarIcon: icone('file-document-outline', 'file-document') }}
+        options={{ title: t.orcamentos, tabBarIcon: icone('file-document-outline', 'file-document') }}
       />
-      <Tabs.Screen name="receitas" options={{ title: 'Receitas', tabBarIcon: icone('book-outline', 'book-open-variant') }} />
-      <Tabs.Screen name="catalogo" options={{ title: 'Catálogo', tabBarIcon: icone('basket-outline', 'basket') }} />
-      <Tabs.Screen name="definicoes" options={{ title: 'Definições', tabBarIcon: icone('cog-outline', 'cog') }} />
+      <Tabs.Screen name="receitas" options={{ title: t.receitas, tabBarIcon: icone('book-outline', 'book-open-variant') }} />
+      <Tabs.Screen name="catalogo" options={{ title: t.catalogo, tabBarIcon: icone('basket-outline', 'basket') }} />
+      <Tabs.Screen name="definicoes" options={{ title: t.definicoes, tabBarIcon: icone('cog-outline', 'cog') }} />
     </Tabs>
   );
 }

@@ -2,7 +2,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { StyleSheet, View } from 'react-native';
 import { Button, Dialog, List, Portal, Text, TouchableRipple } from 'react-native-paper';
 
-import { ESTADOS, NOME_ESTADO, passosSeguintes, type EstadoOrcamento } from '@/domain/estados';
+import { ESTADOS, nomeEstado, passosSeguintes, type EstadoOrcamento } from '@/domain/estados';
+import { textos } from '@/i18n';
 import { COR_ESTADO, espaco, tema } from '@/ui/theme';
 
 type Icone = keyof typeof MaterialCommunityIcons.glyphMap;
@@ -16,11 +17,11 @@ export function BotaoEstado({ estado, onPress }: { estado: EstadoOrcamento; onPr
       borderless
       style={[styles.botaoEstado, { backgroundColor: cor.fundo }]}
       accessibilityRole="button"
-      accessibilityLabel={`Estado: ${NOME_ESTADO[estado]}. Tocar para mudar.`}>
+      accessibilityLabel={textos().estados.botao(nomeEstado(estado))}>
       <View style={styles.botaoEstadoConteudo}>
         <MaterialCommunityIcons name={cor.icone as Icone} size={18} color={cor.texto} />
         <Text variant="labelLarge" style={{ color: cor.texto }}>
-          {NOME_ESTADO[estado]}
+          {nomeEstado(estado)}
         </Text>
         <MaterialCommunityIcons name="menu-down" size={20} color={cor.texto} />
       </View>
@@ -71,7 +72,7 @@ export function DialogoEstado({
   return (
     <Portal>
       <Dialog visible={visivel} onDismiss={aoFechar} style={styles.dialogo}>
-        <Dialog.Title numberOfLines={1}>{titulo ?? 'Mudar estado'}</Dialog.Title>
+        <Dialog.Title numberOfLines={1}>{titulo ?? textos().estados.mudarEstado}</Dialog.Title>
         <Dialog.Content style={styles.dialogoConteudo}>
           {ESTADOS.map((e) => {
             const cor = COR_ESTADO[e];
@@ -79,7 +80,7 @@ export function DialogoEstado({
             return (
               <List.Item
                 key={e}
-                title={NOME_ESTADO[e]}
+                title={nomeEstado(e)}
                 titleStyle={atual && styles.atual}
                 style={[styles.opcao, atual && { backgroundColor: cor.fundo }]}
                 left={() => (
@@ -100,7 +101,7 @@ export function DialogoEstado({
           })}
         </Dialog.Content>
         <Dialog.Actions>
-          <Button onPress={aoFechar}>Cancelar</Button>
+          <Button onPress={aoFechar}>{textos().comum.cancelar}</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>

@@ -1,4 +1,4 @@
-import { estadoDepoisDePartilhar, ESTADOS, NOME_ESTADO } from '@/domain/estados';
+import { estadoDepoisDePartilhar, ESTADOS, nomeEstado } from '@/domain/estados';
 import { hojeIso } from '@/domain/format';
 import { somaLinhas } from '@/domain/pricing';
 import { escalaAplicaSe, escalarLinhas, escalaValida, type LinhaReceitaInput } from '@/domain/receitas';
@@ -53,7 +53,7 @@ describe('estados', () => {
   });
 
   it('todos os estados têm nome', () => {
-    expect(ESTADOS.map((e) => NOME_ESTADO[e])).toEqual(['Rascunho', 'Enviado', 'Aceite', 'Recusado', 'Entregue']);
+    expect(ESTADOS.map((e) => nomeEstado(e))).toEqual(['Rascunho', 'Enviado', 'Aceite', 'Recusado', 'Entregue']);
   });
 });
 

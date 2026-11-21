@@ -15,7 +15,8 @@ src/app/  (ecrãs)  ──►  src/db/repo.ts  ──►  SQLite (expo-sqlite)
 
 | Pasta | Responsabilidade | Pode importar |
 | --- | --- | --- |
-| `src/domain/` | Cálculo de preços, unidades, leitura e formatação de valores | Nada de fora de `domain/` |
+| `src/i18n/` | Textos de cada idioma e idioma atual | Nada (`dispositivo.ts`: `expo-localization`) |
+| `src/domain/` | Cálculo de preços, unidades, leitura e formatação de valores | Só `i18n/` |
 | `src/db/` | Schema, migrations, queries; mantém os totais guardados certos | `domain/`, `backup/` (migrations) |
 | `src/backup/`, `src/share/`, `src/pdf/` | Exportar/importar JSON; texto e PDF para o cliente | `domain/`, módulos Expo |
 | `src/ui/` | Componentes partilhados (cartão do bolo, formulários de linha), tema, diálogos | `db/`, `domain/` |
@@ -94,6 +95,30 @@ Um orçamento antigo tem de dar sempre o mesmo valor. Por isso:
 - **Calendário** ([src/ui/escolherData.ts](../src/ui/escolherData.ts)): `DateTimePickerAndroid.open`
   com o design por omissão (o Material 3 obrigaria a mudar o tema nativo).
 
+## Idiomas
+
+- Português, inglês, espanhol e francês, em [src/i18n/](../src/i18n/). Um só idioma para tudo:
+  ecrãs, PDF, texto para o cliente e nome do ficheiro. Não há idioma por orçamento.
+- `pt.ts` é a referência e define o tipo `Textos`; `en.ts`, `es.ts` e `fr.ts` têm de ter as mesmas
+  chaves (o TypeScript verifica; `i18n.test.ts` verifica também as etiquetas e as cores e que não
+  há textos vazios). Textos com valores são funções que recebem os valores já formatados.
+- **Acrescentar um texto:** pô-lo nas quatro línguas e usar `textos().secção.chave`. Nunca deixar
+  texto da interface escrito diretamente num ecrã.
+- O idioma atual é global (`textos()`, `definirIdioma`). Fica em `definicoes.idioma` (`''` = o do
+  telemóvel, lido com `expo-localization` em `dispositivo.ts`; outra língua cai no inglês). Aplica-se
+  no `onInit` da base, antes do primeiro ecrã, e logo ao escolher nas Definições (não espera por
+  "Guardar definições").
+- Ao mudar de idioma, o `_layout.tsx` da raiz volta a montar a navegação (`key={idioma}`). Com o
+  React Compiler, um componente podia guardar um preço ou texto já formatado no idioma antigo; montar
+  de novo garante que nada fica para trás. Por isso os ecrãs chamam `textos()` sem hook.
+- A formatação também segue o idioma (`textos().formato`): em inglês `€1,234.56` e `30%`; nos outros
+  `1 234,56 €` e `30 %`. A leitura aceita vírgula ou ponto decimal em qualquer idioma. As datas são
+  sempre dd/mm/aaaa.
+- Na base guardam-se códigos, não textos: estados, unidades (`un`; o símbolo mostrado muda) e ids
+  das cores. A exceção são os nomes por omissão dos bolos ("Bolo 1"): ficam no idioma em que foram
+  criados, e `ehNomePorOmissaoBolo` reconhece-os em qualquer idioma.
+- O nome da app no telemóvel ("Orçamentos de Bolos") não é traduzido.
+
 ## Base de dados
 
 - [src/db/migrations.ts](../src/db/migrations.ts): lista de migrations SQL; a versão fica em
@@ -147,7 +172,8 @@ Padrões:
   Botões que gravam (chips de estado, "Repor calculado", apagar bolo) usam `gestor.executar`.
 - Confirmações curtas de sucesso com `avisar()` (Toast do Android). Ações destrutivas ficam no menu
   ⋮ (`MenuMais`) e pedem sempre confirmação.
-- Textos da interface em português de Portugal, sem assumir o género de quem usa a app.
+- Textos da interface em [src/i18n/](../src/i18n/) (ver [Idiomas](#idiomas)), em todas as línguas sem
+  assumir o género de quem usa a app.
 - Cores em [src/ui/theme.ts](../src/ui/theme.ts): paleta do tema, `corCabecalho` e `COR_ESTADO`
   (cor e ícone de cada estado). As listas principais usam `CartaoLista`
   ([src/ui/CartaoLista.tsx](../src/ui/CartaoLista.tsx)).

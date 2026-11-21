@@ -21,6 +21,7 @@ import {
   type Item,
   type LinhaReceitaDetalhe,
 } from '@/db/repo';
+import { textos } from '@/i18n';
 import { mostrarErro } from '@/ui/confirmar';
 import { EscolherItem, FormLivre, FormQuantidade } from '@/ui/FormulariosLinha';
 
@@ -44,24 +45,25 @@ export default function EditarLinhaReceita() {
       .catch(mostrarErro);
   }, [db, linhaId]);
 
-  if (!carregado) return <Stack.Screen options={{ title: 'Linha' }} />;
+  const t = textos();
+  if (!carregado) return <Stack.Screen options={{ title: t.ecras.linha }} />;
 
   if (linha) {
     const remover = () => apagarLinhaReceita(db, linha.id);
     return linha.livre ? (
       <FormLivre
-        titulo="Editar linha livre"
+        titulo={t.linhas.editarLinhaLivre}
         inicial={{ descricao: linha.descricao, valorCent: linha.valor_cent ?? 0 }}
         aoGuardar={(descricao, cent) => atualizarLinhaReceita(db, linha.id, { descricao, valor_cent: cent })}
         aoRemover={remover}
       />
     ) : (
       <FormQuantidade
-        titulo="Editar quantidade"
+        titulo={t.linhas.editarQuantidade}
         nome={linha.nome}
         unidade={linha.unidade}
         precoUnitCent={linha.preco_unit_cent}
-        notaPreco="preço atual do catálogo"
+        notaPreco={t.linhas.notaPrecoReceita}
         inicial={{ quantidade: linha.quantidade, unidadeEntrada: linha.unidade_entrada }}
         aoGuardar={(quantidade, unidade_entrada) =>
           atualizarLinhaReceita(db, linha.id, { quantidade, unidade_entrada })
@@ -74,7 +76,7 @@ export default function EditarLinhaReceita() {
   if (params.livre) {
     return (
       <FormLivre
-        titulo="Linha livre"
+        titulo={t.comum.linhaLivre}
         aoGuardar={(descricao, cent) => adicionarLinhaReceitaLivre(db, receitaId, descricao, cent)}
       />
     );
@@ -82,7 +84,7 @@ export default function EditarLinhaReceita() {
   if (!item) return <EscolherItem aoEscolher={setItem} />;
   return (
     <FormQuantidade
-      titulo="Quantidade"
+      titulo={t.linhas.quantidade}
       nome={item.nome}
       unidade={item.unidade}
       precoUnitCent={item.preco_unidade_cent}

@@ -14,7 +14,8 @@ import {
 } from '@/db/repo';
 import { formatarDecimal, formatarEuro, formatarPrecoUnidade } from '@/domain/format';
 import { somaLinhas, valorLinha } from '@/domain/pricing';
-import { deUnidadeItem } from '@/domain/units';
+import { deUnidadeItem, simboloUnidade } from '@/domain/units';
+import { textos } from '@/i18n';
 import { CampoAutoGuardado } from '@/ui/CampoAutoGuardado';
 import { confirmar, mostrarErro } from '@/ui/confirmar';
 import { avisar, BotaoConcluido, GestorGuardar, TituloComEstado, useGestorGuardar } from '@/ui/Guardar';
@@ -22,18 +23,20 @@ import { MenuMais } from '@/ui/MenuMais';
 import { espaco, tema } from '@/ui/theme';
 
 function descricaoLinha(l: LinhaReceitaDetalhe) {
-  if (l.livre) return 'Linha livre';
+  const t = textos();
+  if (l.livre) return t.comum.linhaLivre;
   const q = deUnidadeItem(l.quantidade, l.unidade_entrada, l.unidade);
   const partes = [
-    `${formatarDecimal(q)} ${l.unidade_entrada} × ${formatarPrecoUnidade(l.preco_unit_cent, l.unidade)}`,
+    `${formatarDecimal(q)} ${simboloUnidade(l.unidade_entrada)} × ${formatarPrecoUnidade(l.preco_unit_cent, l.unidade)}`,
   ];
-  if (l.tipo === 'material') partes.push('material');
-  if (!l.ativo) partes.push('inativo no catálogo');
+  if (l.tipo === 'material') partes.push(t.receita.material);
+  if (!l.ativo) partes.push(t.receita.inativoNoCatalogo);
   return partes.join(' · ');
 }
 
 export default function EditarReceita() {
   const db = useSQLiteContext();
+  const t = textos();
   const { id } = useLocalSearchParams<{ id: string }>();
   const receitaId = Number(id);
   const [r, setR] = useState<ReceitaCompleta | null>(null);
@@ -56,18 +59,17 @@ export default function EditarReceita() {
   }
 
   async function apagar() {
-    const nome = r?.nome ? ` "${r.nome}"` : '';
-    if (!(await confirmar(`Apagar a receita${nome}?`, 'Os orçamentos onde já foi usada não mudam.'))) return;
+    if (!(await confirmar(t.receita.apagarTitulo(r?.nome ?? ''), t.receita.apagarMensagem))) return;
     try {
       await apagarReceita(db, receitaId);
-      avisar('Receita apagada');
+      avisar(t.receita.apagada);
       router.back();
     } catch (e) {
       mostrarErro(e);
     }
   }
 
-  if (!r) return <Stack.Screen options={{ title: 'Receita' }} />;
+  if (!r) return <Stack.Screen options={{ title: t.ecras.receita }} />;
 
   const custo = somaLinhas(r.linhas.map(entradaDeLinhaReceita));
 
@@ -76,12 +78,14 @@ export default function EditarReceita() {
     <KeyboardAvoidingView style={styles.flex} behavior="height">
       <Stack.Screen
         options={{
-          headerTitle: () => <TituloComEstado titulo={r.nome || 'Receita'} estado={gestor.estado} />,
+          headerTitle: () => <TituloComEstado titulo={r.nome || t.ecras.receita} estado={gestor.estado} />,
           headerRight: () => (
             <View style={styles.acoes}>
-              <BotaoConcluido gestor={gestor} mensagem="Receita guardada" />
+              <BotaoConcluido gestor={gestor} mensagem={t.receita.guardada} />
               <MenuMais
-                opcoes={[{ titulo: 'Apagar receita', icone: 'delete-outline', aoEscolher: apagar, destrutiva: true }]}
+                opcoes={[
+                  { titulo: t.receita.apagarReceita, icone: 'delete-outline', aoEscolher: apagar, destrutiva: true },
+                ]}
               />
             </View>
           ),
@@ -89,19 +93,19 @@ export default function EditarReceita() {
       />
       <ScrollView contentContainerStyle={styles.conteudo} keyboardShouldPersistTaps="handled">
         <CampoAutoGuardado
-          label="Nome da receita"
-          placeholder="Ex.: Massa de chocolate 20 cm"
+          label={t.receita.nome}
+          placeholder={t.receita.exemploNome}
           valor={r.nome}
           autoFocus={r.nome === '' && r.linhas.length === 0}
-          aoGuardar={(t) => guardar({ nome: t.trim() })}
+          aoGuardar={(v) => guardar({ nome: v.trim() })}
         />
-        <CampoAutoGuardado label="Notas" valor={r.notas} multiline aoGuardar={(t) => guardar({ notas: t })} />
+        <CampoAutoGuardado label={t.comum.notas} valor={r.notas} multiline aoGuardar={(v) => guardar({ notas: v })} />
 
         <Card mode="outlined">
           <Card.Content style={styles.card}>
-            <Text variant="titleMedium">Ingredientes e materiais</Text>
+            <Text variant="titleMedium">{t.comum.ingredientesMateriais}</Text>
             {r.linhas.length === 0 ? (
-              <Text style={styles.secundario}>Ainda sem linhas.</Text>
+              <Text style={styles.secundario}>{t.receita.semLinhas}</Text>
             ) : (
               r.linhas.map((l) => (
                 <List.Item
@@ -124,7 +128,7 @@ export default function EditarReceita() {
                 icon="plus"
                 compact
                 onPress={() => router.push({ pathname: '/receita/linha', params: { receitaId: String(r.id) } })}>
-                Ingrediente / material
+                {t.comum.ingredienteMaterial}
               </Button>
               <Button
                 mode="text"
@@ -133,7 +137,7 @@ export default function EditarReceita() {
                 onPress={() =>
                   router.push({ pathname: '/receita/linha', params: { receitaId: String(r.id), livre: '1' } })
                 }>
-                Linha livre
+                {t.comum.linhaLivre}
               </Button>
             </View>
           </Card.Content>
@@ -142,11 +146,11 @@ export default function EditarReceita() {
         <Card mode="contained">
           <Card.Content>
             <View style={styles.total}>
-              <Text variant="titleMedium">Custo estimado</Text>
+              <Text variant="titleMedium">{t.receita.custoEstimado}</Text>
               <Text variant="titleMedium">{formatarEuro(custo)}</Text>
             </View>
             <Text variant="bodySmall" style={styles.secundario}>
-              Com os preços atuais do catálogo, sem margem. O tempo de trabalho indica-se no orçamento.
+              {t.receita.notaCusto}
             </Text>
           </Card.Content>
         </Card>

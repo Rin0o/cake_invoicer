@@ -16,13 +16,15 @@ import {
   formatarDecimal,
   formatarEuro,
   formatarEuroInteiro,
+  formatarPercentagem,
   formatarPrecoUnidade,
   formatarTempo,
   lerDecimal,
   lerTempo,
 } from '@/domain/format';
 import { valorLinha, type BoloCalculado } from '@/domain/pricing';
-import { deUnidadeItem } from '@/domain/units';
+import { deUnidadeItem, simboloUnidade } from '@/domain/units';
+import { textos } from '@/i18n';
 import { CampoAutoGuardado } from '@/ui/CampoAutoGuardado';
 import { confirmar, mostrarErro } from '@/ui/confirmar';
 import { useColapsavel, useGestor } from '@/ui/Guardar';
@@ -40,9 +42,14 @@ interface Props {
 }
 
 function descricaoLinha(l: Linha) {
-  if (l.livre) return 'Linha livre';
+  if (l.livre) return textos().comum.linhaLivre;
   const q = deUnidadeItem(l.quantidade, l.unidade_entrada, l.unidade);
-  return `${formatarDecimal(q)} ${l.unidade_entrada} × ${formatarPrecoUnidade(l.preco_unit_cent, l.unidade)}`;
+  return `${formatarDecimal(q)} ${simboloUnidade(l.unidade_entrada)} × ${formatarPrecoUnidade(l.preco_unit_cent, l.unidade)}`;
+}
+
+/** Diferença com sinal: "+5 €", "−3 €". */
+function comSinal(cent: number) {
+  return `${cent > 0 ? '+' : ''}${formatarEuroInteiro(cent)}`;
 }
 
 function LinhaResumo({ rotulo, valor, forte }: { rotulo: string; valor: string; forte?: boolean }) {
@@ -60,6 +67,7 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar, inicialAberto = true 
   const db = useSQLiteContext();
   const gestor = useGestor();
   const { aberto, alternar } = useColapsavel(inicialAberto);
+  const t = textos();
 
   /** Grava e recarrega; usado pelos campos (o `CampoAutoGuardado` trata dos erros). */
   async function mudar(fn: () => Promise<void>) {
@@ -81,7 +89,7 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar, inicialAberto = true 
   }
 
   async function apagar() {
-    if (await confirmar(`Apagar "${bolo.nome}"?`, 'O bolo e todas as suas linhas saem do orçamento.')) {
+    if (await confirmar(t.item.apagarTitulo(bolo.nome), t.bolo.apagarMensagem)) {
       await executar(() => apagarBolo(db, bolo.id));
     }
   }
@@ -89,15 +97,15 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar, inicialAberto = true 
   const horas = formatarDecimal(bolo.tempo_min / 60, 2);
   const menu = (
     <MenuMais
-      descricao="Mais opções do bolo"
-      opcoes={[{ titulo: 'Apagar bolo', icone: 'delete-outline', aoEscolher: apagar, destrutiva: true }]}
+      descricao={t.bolo.maisOpcoes}
+      opcoes={[{ titulo: t.bolo.apagarBolo, icone: 'delete-outline', aoEscolher: apagar, destrutiva: true }]}
     />
   );
 
   if (!aberto) {
     return (
       <Card mode="outlined" style={styles.card}>
-        <TouchableRipple onPress={alternar} borderless style={styles.toque} accessibilityLabel={`Abrir ${bolo.nome}`}>
+        <TouchableRipple onPress={alternar} borderless style={styles.toque} accessibilityLabel={t.bolo.abrir(bolo.nome)}>
           <View style={styles.fechado}>
             <MaterialCommunityIcons name="chevron-down" size={24} color={tema.colors.onSurfaceVariant} />
             <View style={styles.flex}>
@@ -105,8 +113,8 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar, inicialAberto = true 
                 {bolo.nome}
               </Text>
               <Text variant="bodySmall" style={styles.secundario}>
-                {bolo.linhas.length === 1 ? '1 linha' : `${bolo.linhas.length} linhas`}
-                {calc.ajustado ? ' · preço ajustado' : ''}
+                {t.comum.linhas(bolo.linhas.length)}
+                {calc.ajustado ? ` · ${t.bolo.precoAjustado}` : ''}
               </Text>
             </View>
             {calc.abaixoDoCusto ? (
@@ -114,7 +122,7 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar, inicialAberto = true 
                 name="alert-circle"
                 size={20}
                 color={tema.colors.error}
-                accessibilityLabel="Preço abaixo do custo"
+                accessibilityLabel={t.bolo.abaixoDoCustoCurto}
               />
             ) : null}
             <Text variant="titleMedium" style={styles.precoFechado}>
@@ -134,23 +142,23 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar, inicialAberto = true 
           <IconButton
             icon="chevron-up"
             onPress={alternar}
-            accessibilityLabel={`Fechar ${bolo.nome}`}
+            accessibilityLabel={t.bolo.fechar(bolo.nome)}
             style={styles.botaoFechar}
           />
           <CampoAutoGuardado
             style={styles.flex}
-            label="Nome do bolo"
+            label={t.bolo.nome}
             valor={bolo.nome}
-            aoGuardar={async (t) => {
-              if (!t.trim()) return 'Indique um nome.';
-              await mudar(() => atualizarBolo(db, bolo.id, { nome: t.trim() }));
+            aoGuardar={async (v) => {
+              if (!v.trim()) return t.bolo.indiqueNome;
+              await mudar(() => atualizarBolo(db, bolo.id, { nome: v.trim() }));
             }}
           />
           {menu}
         </View>
 
         {bolo.linhas.length === 0 ? (
-          <Text style={styles.secundario}>Ainda sem ingredientes.</Text>
+          <Text style={styles.secundario}>{t.bolo.semIngredientes}</Text>
         ) : (
           <View>
             {bolo.linhas.map((l) => (
@@ -172,14 +180,14 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar, inicialAberto = true 
             icon="plus"
             compact
             onPress={() => router.push({ pathname: '/orcamento/linha', params: { boloId: String(bolo.id) } })}>
-            Ingrediente / material
+            {t.comum.ingredienteMaterial}
           </Button>
           <Button
             mode="contained-tonal"
             icon="book-open-variant"
             compact
             onPress={() => router.push({ pathname: '/orcamento/receita', params: { boloId: String(bolo.id) } })}>
-            Receita
+            {t.bolo.receita}
           </Button>
           <Button
             mode="text"
@@ -188,17 +196,17 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar, inicialAberto = true 
             onPress={() =>
               router.push({ pathname: '/orcamento/linha', params: { boloId: String(bolo.id), livre: '1' } })
             }>
-            Linha livre
+            {t.comum.linhaLivre}
           </Button>
         </View>
 
         <CampoAutoGuardado
-          label="Tempo de trabalho"
+          label={t.bolo.tempoTrabalho}
           valor={bolo.tempo_min ? formatarTempo(bolo.tempo_min) : ''}
-          ajuda="Ex.: 2h30, 2:30 ou 150 (minutos)"
-          aoGuardar={async (t) => {
-            const min = t.trim() === '' ? 0 : lerTempo(t);
-            if (min === null) return 'Tempo inválido. Use, por exemplo, 2h30 ou 150.';
+          ajuda={t.bolo.ajudaTempo}
+          aoGuardar={async (v) => {
+            const min = v.trim() === '' ? 0 : lerTempo(v);
+            if (min === null) return t.bolo.tempoInvalido;
             await mudar(() => atualizarBolo(db, bolo.id, { tempo_min: min }));
           }}
         />
@@ -206,31 +214,31 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar, inicialAberto = true 
         <Divider />
 
         <View>
-          <LinhaResumo rotulo="Ingredientes e materiais" valor={formatarEuro(calc.materiaisCent)} />
+          <LinhaResumo rotulo={t.comum.ingredientesMateriais} valor={formatarEuro(calc.materiaisCent)} />
           <LinhaResumo
-            rotulo={`Tempo (${horas} h × ${formatarEuro(orcamento.valor_hora_cent)})`}
+            rotulo={t.bolo.tempo(horas, formatarEuro(orcamento.valor_hora_cent))}
             valor={formatarEuro(calc.tempoCent)}
           />
           <LinhaResumo
-            rotulo={`Custos indiretos (${formatarDecimal(orcamento.indireto_pct, 2)} %)`}
+            rotulo={t.bolo.indiretos(formatarPercentagem(orcamento.indireto_pct))}
             valor={formatarEuro(calc.indiretosCent)}
           />
-          <LinhaResumo rotulo="Custo" valor={formatarEuro(calc.custoCent)} forte />
+          <LinhaResumo rotulo={t.bolo.custo} valor={formatarEuro(calc.custoCent)} forte />
           <LinhaResumo
-            rotulo={`Margem (${formatarDecimal(orcamento.margem_pct, 2)} % dos materiais)`}
+            rotulo={t.bolo.margem(formatarPercentagem(orcamento.margem_pct))}
             valor={formatarEuro(calc.margemCent)}
           />
-          <LinhaResumo rotulo="Preço calculado" valor={formatarEuroInteiro(calc.precoCalcCent)} forte />
+          <LinhaResumo rotulo={t.bolo.precoCalculado} valor={formatarEuroInteiro(calc.precoCalcCent)} forte />
         </View>
 
         <CampoAutoGuardado
-          label="Preço final"
+          label={t.bolo.precoFinal}
           valor={String(calc.precoFinalCent / 100)}
           keyboardType="decimal-pad"
           right={<TextInput.Affix text="€" />}
-          aoGuardar={async (t) => {
-            const n = lerDecimal(t);
-            if (n === null || n < 0) return 'Valor inválido.';
+          aoGuardar={async (v) => {
+            const n = lerDecimal(v);
+            if (n === null || n < 0) return t.bolo.valorInvalido;
             const cent = Math.round(n) * 100;
             await mudar(() =>
               definirPrecoFinal(db, bolo.id, cent === calc.precoCalcCent ? null : cent, calc.precoCalcCent),
@@ -241,28 +249,28 @@ export function BoloCard({ bolo, calc, orcamento, aoMudar, inicialAberto = true 
         {calc.ajustado ? (
           <View style={styles.ajuste}>
             <Text variant="bodyMedium" style={styles.flex}>
-              Ajustado: {calc.diferencaCent > 0 ? '+' : ''}
-              {formatarEuroInteiro(calc.diferencaCent)} face ao calculado.
+              {t.bolo.ajustado(comSinal(calc.diferencaCent))}
             </Text>
             <Button
               mode="outlined"
               compact
               icon="restore"
               onPress={() => executar(() => definirPrecoFinal(db, bolo.id, null, calc.precoCalcCent))}>
-              Repor calculado
+              {t.bolo.reporCalculado}
             </Button>
           </View>
         ) : null}
         {calc.calculadoMudou ? (
           <Text variant="bodySmall" style={styles.aviso}>
-            O preço calculado mudou desde o ajuste: era{' '}
-            {formatarEuroInteiro(bolo.preco_calc_no_ajuste_cent ?? 0)}, agora é{' '}
-            {formatarEuroInteiro(calc.precoCalcCent)}.
+            {t.bolo.calculadoMudou(
+              formatarEuroInteiro(bolo.preco_calc_no_ajuste_cent ?? 0),
+              formatarEuroInteiro(calc.precoCalcCent),
+            )}
           </Text>
         ) : null}
         {calc.abaixoDoCusto ? (
           <Text variant="bodySmall" style={styles.erro}>
-            Atenção: o preço final está abaixo do custo ({formatarEuro(calc.custoCent)}).
+            {t.bolo.abaixoDoCusto(formatarEuro(calc.custoCent))}
           </Text>
         ) : null}
       </Card.Content>

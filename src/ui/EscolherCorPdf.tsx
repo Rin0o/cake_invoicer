@@ -2,7 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { StyleSheet, View } from 'react-native';
 import { Text, TouchableRipple } from 'react-native-paper';
 
-import { CORES_PDF } from '@/pdf/cores';
+import { CORES_PDF, nomeCor } from '@/pdf/cores';
 import { espaco, tema } from '@/ui/theme';
 
 /** Círculos com as cores do PDF, quatro por linha; a escolhida tem um visto e um aro. */
@@ -18,7 +18,7 @@ export function EscolherCorPdf({ valor, aoEscolher }: { valor: string; aoEscolhe
             borderless
             style={styles.opcao}
             accessibilityRole="radio"
-            accessibilityLabel={c.nome}
+            accessibilityLabel={nomeCor(c.id)}
             accessibilityState={{ checked: escolhida }}>
             <View style={styles.opcaoConteudo}>
               <View style={[styles.aro, escolhida && { borderColor: c.principal }]}>
@@ -30,7 +30,7 @@ export function EscolherCorPdf({ valor, aoEscolher }: { valor: string; aoEscolhe
                 variant="labelMedium"
                 numberOfLines={2}
                 style={[styles.nome, escolhida && styles.nomeEscolhido]}>
-                {c.nome}
+                {nomeCor(c.id)}
               </Text>
             </View>
           </TouchableRipple>

@@ -1,15 +1,13 @@
 /** Estados de um orçamento. Mudam-se à mão; partilhar um rascunho passa-o a "enviado". */
+import { textos } from '@/i18n';
 
 export const ESTADOS = ['rascunho', 'enviado', 'aceite', 'recusado', 'entregue'] as const;
 export type EstadoOrcamento = (typeof ESTADOS)[number];
 
-export const NOME_ESTADO: Record<EstadoOrcamento, string> = {
-  rascunho: 'Rascunho',
-  enviado: 'Enviado',
-  aceite: 'Aceite',
-  recusado: 'Recusado',
-  entregue: 'Entregue',
-};
+/** Nome do estado no idioma atual. */
+export function nomeEstado(estado: EstadoOrcamento): string {
+  return textos().estados.nome[estado];
+}
 
 export interface PassoSeguinte {
   estado: EstadoOrcamento;
@@ -21,16 +19,19 @@ export interface PassoSeguinte {
   principal: boolean;
 }
 
-const PASSOS: Record<EstadoOrcamento, PassoSeguinte[]> = {
+type Passos = ReturnType<typeof textos>['estados']['passos'];
+
+/** Passos de cada estado; os textos vêm de `textos().estados.passos`. */
+const PASSOS: Record<EstadoOrcamento, { estado: EstadoOrcamento; texto: keyof Passos; principal: boolean }[]> = {
   // Enviar o PDF ou o texto já passa um rascunho a "enviado".
   rascunho: [],
   enviado: [
-    { estado: 'aceite', rotulo: 'Aceitou', descricao: 'Cliente aceitou', principal: true },
-    { estado: 'recusado', rotulo: 'Recusou', descricao: 'Cliente recusou', principal: false },
+    { estado: 'aceite', texto: 'aceitou', principal: true },
+    { estado: 'recusado', texto: 'recusou', principal: false },
   ],
-  aceite: [{ estado: 'entregue', rotulo: 'Entregue', descricao: 'Marcar como entregue', principal: true }],
+  aceite: [{ estado: 'entregue', texto: 'entregue', principal: true }],
   // Reabrir volta a rascunho: ajusta-se e, ao partilhar de novo, passa a "enviado".
-  recusado: [{ estado: 'rascunho', rotulo: 'Reabrir', descricao: 'Reabrir para ajustar e reenviar', principal: true }],
+  recusado: [{ estado: 'rascunho', texto: 'reabrir', principal: true }],
   entregue: [],
 };
 
@@ -38,11 +39,10 @@ const PASSOS: Record<EstadoOrcamento, PassoSeguinte[]> = {
 export const GRUPOS = ['abertos', 'entregues', 'recusados'] as const;
 export type GrupoOrcamentos = (typeof GRUPOS)[number];
 
-export const NOME_GRUPO: Record<GrupoOrcamentos, string> = {
-  abertos: 'Abertos',
-  entregues: 'Entregues',
-  recusados: 'Recusados',
-};
+/** Nome da lista no idioma atual. */
+export function nomeGrupo(grupo: GrupoOrcamentos): string {
+  return textos().estados.grupo[grupo];
+}
 
 export const ESTADOS_DO_GRUPO: Record<GrupoOrcamentos, readonly EstadoOrcamento[]> = {
   abertos: ['rascunho', 'enviado', 'aceite'],
@@ -58,12 +58,14 @@ export function grupoDoEstado(estado: EstadoOrcamento): GrupoOrcamentos {
 export function avisoMudancaDeGrupo(de: EstadoOrcamento, para: EstadoOrcamento): string | null {
   const grupo = grupoDoEstado(para);
   if (grupo === grupoDoEstado(de)) return null;
-  return grupo === 'abertos' ? 'Reaberto: está nos Abertos' : `Passou para ${NOME_GRUPO[grupo]}`;
+  const t = textos().estados;
+  return grupo === 'abertos' ? t.reaberto : t.passouPara(nomeGrupo(grupo));
 }
 
 /** Ações sugeridas a partir de um estado. Os outros estados escolhem-se à mão. */
 export function passosSeguintes(estado: EstadoOrcamento): PassoSeguinte[] {
-  return PASSOS[estado];
+  const t = textos().estados.passos;
+  return PASSOS[estado].map((p) => ({ estado: p.estado, ...t[p.texto], principal: p.principal }));
 }
 
 /** Estado do orçamento depois de ser partilhado com o cliente. */
