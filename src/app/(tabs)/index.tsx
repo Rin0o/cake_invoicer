@@ -18,13 +18,14 @@ import {
   ESTADOS_DO_GRUPO,
   GRUPOS,
   grupoDoEstado,
-  NOME_ESTADO,
-  NOME_GRUPO,
+  nomeEstado,
+  nomeGrupo,
   type EstadoOrcamento,
   type GrupoOrcamentos,
 } from '@/domain/estados';
 import { formatarData, formatarDataDeInstante, formatarEuroInteiro } from '@/domain/format';
 import { formatarNumero } from '@/domain/numero';
+import { textos } from '@/i18n';
 import { CartaoLista, Etiqueta } from '@/ui/CartaoLista';
 import { mostrarErro } from '@/ui/confirmar';
 import { DialogoEstado } from '@/ui/Estado';
@@ -34,6 +35,7 @@ import { COR_ESTADO, espaco, estiloChipEstado, tema } from '@/ui/theme';
 
 export default function Orcamentos() {
   const db = useSQLiteContext();
+  const t = textos();
   const [pesquisa, setPesquisa] = useState('');
   const [grupo, setGrupo] = useState<GrupoOrcamentos>('abertos');
   const [estado, setEstado] = useState<EstadoOrcamento | null>(null);
@@ -66,7 +68,7 @@ export default function Orcamentos() {
     try {
       await atualizarOrcamento(db, o.id, { estado: novo });
       const aviso = avisoMudancaDeGrupo(o.estado, novo);
-      avisar(`${o.cliente || 'Orçamento'}: ${NOME_ESTADO[novo]}${aviso ? `. ${aviso}` : ''}`);
+      avisar(`${o.cliente || t.comum.orcamento}: ${nomeEstado(novo)}${aviso ? `. ${aviso}` : ''}`);
       carregar();
     } catch (e) {
       mostrarErro(e);
@@ -85,26 +87,26 @@ export default function Orcamentos() {
   const filtrado = aPesquisar || estadoAtivo !== null;
 
   function textoVazio() {
-    if (filtrado) return 'Nenhum orçamento encontrado.';
-    if (grupo === 'entregues') return 'Ainda não há orçamentos entregues.';
-    if (grupo === 'recusados') return 'Nenhum orçamento recusado.';
+    if (filtrado) return t.orcamentos.vazioFiltrado;
+    if (grupo === 'entregues') return t.orcamentos.vazioEntregues;
+    if (grupo === 'recusados') return t.orcamentos.vazioRecusados;
     if (contagem && contagem.entregues + contagem.recusados > 0) {
-      return 'Não há orçamentos abertos.\nToque em + para criar um novo.';
+      return t.orcamentos.vazioAbertos;
     }
-    return 'Ainda não há orçamentos.\nToque em + para criar o primeiro.';
+    return t.orcamentos.vazio;
   }
 
   return (
     <View style={styles.ecra}>
       <Searchbar
-        placeholder="Pesquisar cliente, pedido, nº ou ref."
+        placeholder={t.orcamentos.pesquisa}
         value={pesquisa}
         onChangeText={setPesquisa}
         style={styles.pesquisa}
       />
       {aPesquisar ? (
         <Text variant="labelMedium" style={styles.aviso}>
-          A procurar em todos os orçamentos
+          {t.orcamentos.aProcurarEmTodos}
         </Text>
       ) : (
         <SegmentedButtons
@@ -115,8 +117,8 @@ export default function Orcamentos() {
             const n = contagem?.[g];
             return {
               value: g,
-              label: n ? `${NOME_GRUPO[g]} (${n})` : NOME_GRUPO[g],
-              accessibilityLabel: `${NOME_GRUPO[g]}${n !== undefined ? `, ${n}` : ''}`,
+              label: n ? `${nomeGrupo(g)} (${n})` : nomeGrupo(g),
+              accessibilityLabel: `${nomeGrupo(g)}${n !== undefined ? `, ${n}` : ''}`,
               labelStyle: styles.grupoTexto,
             };
           })}
@@ -127,7 +129,7 @@ export default function Orcamentos() {
         <View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtros}>
             <Chip selected={estadoAtivo === null} showSelectedOverlay onPress={() => setEstado(null)}>
-              Todos
+              {t.orcamentos.todos}
             </Chip>
             {estadosVisiveis.map((e) => (
               <Chip
@@ -136,7 +138,7 @@ export default function Orcamentos() {
                 showSelectedOverlay
                 {...estiloChipEstado(e, estadoAtivo === e)}
                 onPress={() => setEstado(estadoAtivo === e ? null : e)}>
-                {NOME_ESTADO[e]}
+                {nomeEstado(e)}
               </Chip>
             ))}
           </ScrollView>
@@ -156,10 +158,12 @@ export default function Orcamentos() {
           // Num entregue ou recusado interessa quando ficou assim, não a entrega prevista.
           const fechado = grupoDoEstado(o.estado) !== 'abertos';
           const data = fechado ? formatarDataDeInstante(o.estado_em) : formatarData(o.data_entrega);
-          const rotuloData = fechado ? `${NOME_ESTADO[o.estado]} a ${data}` : `Entrega ${data}`;
+          const rotuloData = fechado
+            ? t.orcamentos.dataDoEstado(nomeEstado(o.estado), data)
+            : t.orcamentos.entrega(data);
           return (
             <CartaoLista
-              titulo={o.cliente || 'Sem cliente'}
+              titulo={o.cliente || t.comum.semCliente}
               tituloEstilo={!o.cliente && styles.semCliente}
               icone={cor.icone}
               corIcone={cor.texto}
@@ -172,7 +176,7 @@ export default function Orcamentos() {
                     </Text>
                   ) : null}
                   <View style={styles.linhaDetalhes}>
-                    <Etiqueta texto={NOME_ESTADO[o.estado]} cor={cor.texto} fundo={cor.fundo} />
+                    <Etiqueta texto={nomeEstado(o.estado)} cor={cor.texto} fundo={cor.fundo} />
                     {data ? (
                       <View style={styles.entrega} accessibilityLabel={rotuloData}>
                         <MaterialCommunityIcons
@@ -190,7 +194,7 @@ export default function Orcamentos() {
               }
               direita={
                 <View style={styles.direita}>
-                  <Text variant="labelMedium" style={styles.numero} accessibilityLabel={`Número ${formatarNumero(o)}`}>
+                  <Text variant="labelMedium" style={styles.numero} accessibilityLabel={t.orcamentos.numero(formatarNumero(o))}>
                     {formatarNumero(o)}
                   </Text>
                   <Text variant="titleMedium" style={styles.total}>
@@ -200,19 +204,19 @@ export default function Orcamentos() {
               }
               onPress={() => router.push({ pathname: '/orcamento/[id]', params: { id: String(o.id) } })}
               onLongPress={() => setAMudar(o)}
-              dicaAcessibilidade="Toque longo para mudar o estado"
+              dicaAcessibilidade={t.orcamentos.dicaToqueLongo}
             />
           );
         }}
       />
       <DialogoEstado
         visivel={aMudar !== null}
-        titulo={aMudar ? aMudar.cliente || `Orçamento ${formatarNumero(aMudar)}` : 'Mudar estado'}
+        titulo={aMudar ? aMudar.cliente || t.comum.orcamentoN(formatarNumero(aMudar)) : t.estados.mudarEstado}
         estado={aMudar?.estado ?? null}
         aoEscolher={(e) => aMudar && mudarEstado(aMudar, e)}
         aoFechar={() => setAMudar(null)}
       />
-      <FAB icon="plus" label="Novo" style={styles.fab} onPress={novo} />
+      <FAB icon="plus" label={t.orcamentos.novo} style={styles.fab} onPress={novo} />
     </View>
   );
 }

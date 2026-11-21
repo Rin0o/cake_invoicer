@@ -11,6 +11,7 @@ import { calcularOrcamento, type ParametrosOrcamento } from '@/domain/pricing';
 import { escalarLinhas } from '@/domain/receitas';
 import { lerPesquisaReferencia, numeroDaReferencia } from '@/domain/referencia';
 import type { UnidadeEntrada, UnidadeItem } from '@/domain/units';
+import { ehNomePorOmissaoBolo, textos, type Idioma } from '@/i18n';
 
 export type { EstadoOrcamento };
 export type TipoItem = 'ingrediente' | 'material';
@@ -39,10 +40,12 @@ export interface Definicoes {
   contacto_facebook: string;
   contacto_tiktok: string;
   contacto_site: string;
+  /** 'pt', 'en', 'es', 'fr', ou '' para usar o idioma do telemóvel. Grava-se com `guardarIdioma`. */
+  idioma: string;
 }
 
-/** O que se edita no ecrã Definições (tudo menos a moeda). */
-export type DefinicoesEditaveis = Omit<Definicoes, 'moeda'>;
+/** O que se grava com o botão "Guardar definições" (o idioma aplica-se logo ao escolher). */
+export type DefinicoesEditaveis = Omit<Definicoes, 'moeda' | 'idioma'>;
 
 const CAMPOS_EDITAVEIS = [
   'valor_hora_cent', 'custo_indireto_pct', 'margem_pct', 'nome_negocio', 'pdf_cor',
@@ -150,10 +153,7 @@ export async function atualizarItem(db: SQLiteDatabase, id: number, item: NovoIt
   if (atual && atual.unidade !== item.unidade) {
     const receitas = await receitasComItem(db, id);
     if (receitas.length > 0) {
-      throw new Error(
-        `Não é possível mudar a unidade: o item é usado nas receitas ${listarNomes(receitas)}. ` +
-          'Retire-o dessas receitas primeiro, ou crie um item novo.',
-      );
+      throw new Error(textos().base.mudarUnidade(listarNomes(receitas)));
     }
   }
   await db.runAsync(
@@ -177,7 +177,7 @@ export async function receitasComItem(db: SQLiteDatabase, itemId: number): Promi
      WHERE l.item_id = ? ORDER BY r.nome COLLATE NOCASE`,
     itemId,
   );
-  return r.map((x) => x.nome || 'Sem nome');
+  return r.map((x) => x.nome || textos().comum.semNome);
 }
 
 function listarNomes(nomes: string[]) {
@@ -188,10 +188,7 @@ function listarNomes(nomes: string[]) {
 export async function apagarItem(db: SQLiteDatabase, id: number) {
   const receitas = await receitasComItem(db, id);
   if (receitas.length > 0) {
-    throw new Error(
-      `Este item é usado nas receitas ${listarNomes(receitas)}. Retire-o dessas receitas ` +
-        'antes de o apagar, ou desative-o.',
-    );
+    throw new Error(textos().base.itemEmReceitas(listarNomes(receitas)));
   }
   await db.runAsync('DELETE FROM items WHERE id = ?', id);
 }
@@ -200,8 +197,13 @@ export async function apagarItem(db: SQLiteDatabase, id: number) {
 
 export async function obterDefinicoes(db: SQLiteDatabase): Promise<Definicoes> {
   const d = await db.getFirstAsync<Definicoes>('SELECT * FROM definicoes WHERE id = 1');
-  if (!d) throw new Error('Definições em falta');
+  if (!d) throw new Error(textos().base.definicoesEmFalta);
   return d;
+}
+
+/** Guarda o idioma da app ('' = o do telemóvel). Não mexe em orçamentos já feitos. */
+export async function guardarIdioma(db: SQLiteDatabase, idioma: Idioma | '') {
+  await db.runAsync('UPDATE definicoes SET idioma = ? WHERE id = 1', idioma);
 }
 
 export async function guardarDefinicoes(db: SQLiteDatabase, d: DefinicoesEditaveis) {
@@ -333,7 +335,7 @@ export async function criarOrcamento(db: SQLiteDatabase, opcoes: { hoje?: string
     );
     id = r.lastInsertRowId;
     await db.runAsync(
-      'INSERT INTO orcamento_bolos (orcamento_id, nome, ordem) VALUES (?, ?, 0)', id, 'Bolo 1',
+      'INSERT INTO orcamento_bolos (orcamento_id, nome, ordem) VALUES (?, ?, 0)', id, nomeBolo(1),
     );
   });
   return id;
@@ -410,6 +412,11 @@ export async function apagarOrcamento(db: SQLiteDatabase, id: number) {
 
 // ---------- Bolos ----------
 
+/** Nome de um bolo novo no idioma atual: "Bolo 2", "Cake 2"… */
+function nomeBolo(n: number) {
+  return `${textos().bolo.prefixoNome} ${n}`;
+}
+
 export async function adicionarBolo(db: SQLiteDatabase, orcamentoId: number) {
   const r = await db.getFirstAsync<{ n: number; maxOrdem: number | null }>(
     'SELECT COUNT(*) AS n, MAX(ordem) AS maxOrdem FROM orcamento_bolos WHERE orcamento_id = ?',
@@ -417,7 +424,7 @@ export async function adicionarBolo(db: SQLiteDatabase, orcamentoId: number) {
   );
   await db.runAsync(
     'INSERT INTO orcamento_bolos (orcamento_id, nome, ordem) VALUES (?, ?, ?)',
-    orcamentoId, `Bolo ${(r?.n ?? 0) + 1}`, (r?.maxOrdem ?? -1) + 1,
+    orcamentoId, nomeBolo((r?.n ?? 0) + 1), (r?.maxOrdem ?? -1) + 1,
   );
   await recalcularTotais(db, orcamentoId);
 }
@@ -717,19 +724,20 @@ export async function apagarLinhaReceita(db: SQLiteDatabase, linhaId: number) {
 /**
  * Copia as linhas da receita para o bolo, com os preços atuais do catálogo e a escala
  * aplicada aos ingredientes. Junta às linhas que o bolo já tem. Se o bolo estiver vazio
- * e ainda tiver o nome por omissão ("Bolo 2"), passa a ter o nome da receita.
+ * e ainda tiver o nome por omissão ("Bolo 2", ou "Cake 2" noutro idioma), passa a ter o nome
+ * da receita.
  */
 export async function aplicarReceita(db: SQLiteDatabase, boloId: number, receitaId: number, escala: number) {
   const receita = await obterReceita(db, receitaId);
-  if (!receita) throw new Error('A receita já não existe.');
-  if (receita.linhas.length === 0) throw new Error('A receita não tem linhas.');
+  if (!receita) throw new Error(textos().receita.naoExiste);
+  if (receita.linhas.length === 0) throw new Error(textos().receita.semLinhasErro);
   const bolo = await db.getFirstAsync<Bolo & { n_linhas: number; max_ordem: number | null }>(
     `SELECT b.*, (SELECT COUNT(*) FROM orcamento_linhas l WHERE l.bolo_id = b.id) AS n_linhas,
        (SELECT MAX(ordem) FROM orcamento_linhas l WHERE l.bolo_id = b.id) AS max_ordem
      FROM orcamento_bolos b WHERE b.id = ?`,
     boloId,
   );
-  if (!bolo) throw new Error('O bolo já não existe.');
+  if (!bolo) throw new Error(textos().base.boloNaoExiste);
 
   const escaladas = escalarLinhas(
     receita.linhas.map((l) => ({ ...entradaDeLinhaReceita(l), linha: l })),
@@ -748,7 +756,7 @@ export async function aplicarReceita(db: SQLiteDatabase, boloId: number, receita
         ordem++,
       );
     }
-    if (bolo.n_linhas === 0 && /^Bolo \d+$/.test(bolo.nome) && receita.nome.trim()) {
+    if (bolo.n_linhas === 0 && ehNomePorOmissaoBolo(bolo.nome) && receita.nome.trim()) {
       await db.runAsync('UPDATE orcamento_bolos SET nome = ? WHERE id = ?', receita.nome.trim(), boloId);
     }
   });

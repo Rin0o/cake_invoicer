@@ -45,6 +45,27 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
 - [ ] Os nomes das oito cores cabem por baixo dos círculos, sem cortar (num telemóvel pequeno).
 - [ ] Atualizar por cima da 0.2.0, com orçamentos: a cor do PDF fica "Framboesa".
 
+## Idioma
+
+- [ ] Atualizar por cima da versão anterior, com o telemóvel **em inglês**: a app continua em
+      português e Definições → Idioma mostra "Português".
+- [ ] Instalação nova com o telemóvel em espanhol: a app abre em espanhol ("Automático"). Com o
+      telemóvel em alemão: abre em inglês.
+- [ ] Mudar para English: todos os separadores, títulos, botões e avisos mudam logo; os preços
+      passam a `€12.50` e as percentagens a `30%`. A app fica nas Definições ou volta à lista de
+      orçamentos, sem erros.
+- [ ] Com cada um dos quatro idiomas, percorrer: lista de orçamentos, orçamento (cliente fechado e
+      aberto, bolo aberto, barra do total), linha, receita e catálogo. Nenhum texto sai cortado
+      nem em português (exceto o que foi escrito por quem usa a app).
+- [ ] Em English, criar um orçamento: o bolo chama-se "Cake 1". Aplicar uma receita dá-lhe o nome
+      da receita.
+- [ ] Em English, escrever um preço `1,20` e outro `1.20`: dão o mesmo valor.
+- [ ] Em Français, enviar o PDF: título "Devis", colunas "Gâteau"/"Prix", rodapé "ne vaut pas
+      facture", ficheiro `Devis-….pdf`. Enviar em texto: "Devis réf. …".
+- [ ] O calendário da data de entrega mostra os botões no idioma da app.
+- [ ] Fechar e voltar a abrir a app: mantém o idioma escolhido.
+- [ ] Restaurar um backup feito noutro idioma: a app muda para o idioma do backup.
+
 ## Orçamento
 
 - [ ] Criar um orçamento novo: abre com "Bolo 1" e o número seguinte do ano (ex.: `Nº 2026-004`)

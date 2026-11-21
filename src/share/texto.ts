@@ -1,5 +1,6 @@
 import { formatarData, formatarEuroInteiro } from '@/domain/format';
 import type { OrcamentoCalculado } from '@/domain/pricing';
+import { textos } from '@/i18n';
 
 export interface DadosResumo {
   nomeNegocio: string;
@@ -17,12 +18,13 @@ export interface DadosResumo {
  * não inclui o nome do cliente, o título do pedido nem as notas internas.
  */
 export function resumoTexto(d: DadosResumo): string {
+  const t = textos().texto;
   const linhas: string[] = [];
-  const titulo = `Orçamento ref. ${d.referencia}`;
+  const titulo = t.titulo(d.referencia);
   linhas.push(d.nomeNegocio ? `*${titulo} — ${d.nomeNegocio}*` : `*${titulo}*`);
   linhas.push('');
   if (d.dataEntrega) {
-    linhas.push(`Entrega: ${formatarData(d.dataEntrega)}`);
+    linhas.push(t.entrega(formatarData(d.dataEntrega)));
     linhas.push('');
   }
 
@@ -30,6 +32,6 @@ export function resumoTexto(d: DadosResumo): string {
     linhas.push(`• ${b.nome}: ${formatarEuroInteiro(d.calculo.bolos[i].precoFinalCent)}`);
   });
   linhas.push('');
-  linhas.push(`*Total: ${formatarEuroInteiro(d.calculo.totalCent)}*`);
+  linhas.push(`*${t.total(formatarEuroInteiro(d.calculo.totalCent))}*`);
   return linhas.join('\n');
 }

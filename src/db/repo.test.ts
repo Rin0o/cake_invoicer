@@ -7,6 +7,7 @@ import type { EstadoOrcamento } from '@/domain/estados';
 import { formatarNumero } from '@/domain/numero';
 import { formatarReferencia } from '@/domain/referencia';
 import { paraUnidadeItem } from '@/domain/units';
+import { definirIdioma } from '@/i18n';
 
 jest.mock('expo-file-system', () => ({}));
 jest.mock('expo-sharing', () => ({}));
@@ -76,6 +77,29 @@ describe('migrations', () => {
 
     const o = (await repo.listarOrcamentos(db))[0];
     expect(o.estado_em).toBe('2026-11-15T18:30:00.000Z');
+    espiao.mockRestore();
+  });
+
+  it('v6: uma base nova usa o idioma do telemóvel; uma com dados fica em português', async () => {
+    const espiao = jest.spyOn(backupModulo, 'guardarBackupAutomatico').mockResolvedValue();
+    expect((await repo.obterDefinicoes(await novaBase())).idioma).toBe('');
+
+    const vazia = abrirBaseDeTeste();
+    const comItem = abrirBaseDeTeste();
+    for (const db of [vazia, comItem]) {
+      for (let v = 0; v < 5; v++) await db.execAsync(MIGRATIONS[v]);
+      await db.execAsync('PRAGMA user_version = 5');
+    }
+    await comItem.execAsync(
+      `INSERT INTO items (tipo, nome, unidade, preco_unidade_cent, atualizado_em)
+       VALUES ('ingrediente', 'Farinha', 'kg', 120, '2026-11-01')`,
+    );
+
+    await migrar(vazia);
+    await migrar(comItem);
+
+    expect((await repo.obterDefinicoes(vazia)).idioma).toBe('');
+    expect((await repo.obterDefinicoes(comItem)).idioma).toBe('pt');
     espiao.mockRestore();
   });
 
@@ -176,7 +200,7 @@ describe('orçamentos', () => {
       contacto_site: 'doces.pt',
     };
     await repo.guardarDefinicoes(db, novas);
-    expect(await repo.obterDefinicoes(db)).toEqual({ id: 1, moeda: 'EUR', ...novas });
+    expect(await repo.obterDefinicoes(db)).toEqual({ id: 1, moeda: 'EUR', idioma: '', ...novas });
   });
 
   it('vários bolos, apagar bolo e apagar orçamento em cascata', async () => {
@@ -397,6 +421,54 @@ describe('orçamentos', () => {
     const l = (await repo.obterOrcamento(db, oid))!.bolos[0].linhas[0];
     expect(l.item_id).toBeNull();
     expect(l.descricao).toBe('Farinha');
+  });
+});
+
+describe('idioma', () => {
+  afterEach(() => definirIdioma('pt'));
+
+  it('guarda o idioma sem mexer nas outras definições', async () => {
+    const db = await novaBase();
+    const antes = await repo.obterDefinicoes(db);
+    await repo.guardarIdioma(db, 'fr');
+    expect(await repo.obterDefinicoes(db)).toEqual({ ...antes, idioma: 'fr' });
+    await repo.guardarIdioma(db, '');
+    expect((await repo.obterDefinicoes(db)).idioma).toBe('');
+  });
+
+  it('"Guardar definições" não muda o idioma', async () => {
+    const db = await novaBase();
+    await repo.guardarIdioma(db, 'es');
+    const { moeda: _m, idioma: _i, ...atuais } = await repo.obterDefinicoes(db);
+    await repo.guardarDefinicoes(db, { ...atuais, margem_pct: 40 });
+    expect((await repo.obterDefinicoes(db)).idioma).toBe('es');
+  });
+
+  it('os bolos novos têm o nome no idioma atual', async () => {
+    const db = await novaBase();
+    definirIdioma('en');
+    const id = await repo.criarOrcamento(db);
+    await repo.adicionarBolo(db, id);
+    expect((await repo.obterOrcamento(db, id))!.bolos.map((b) => b.nome)).toEqual(['Cake 1', 'Cake 2']);
+  });
+
+  it('uma receita dá o nome a um bolo vazio com o nome por omissão de qualquer idioma', async () => {
+    const db = await novaBase();
+    const farinha = await itemFarinha(db);
+    const rid = await repo.criarReceita(db, 'Massa de baunilha');
+    await repo.adicionarLinhaReceitaItem(db, rid, farinha.id, 0.5, 'g');
+    definirIdioma('fr');
+    const id = await repo.criarOrcamento(db); // "Gâteau 1"
+    definirIdioma('pt');
+    const boloId = (await repo.obterOrcamento(db, id))!.bolos[0].id;
+    await repo.aplicarReceita(db, boloId, rid, 1);
+    expect((await repo.obterOrcamento(db, id))!.bolos[0].nome).toBe('Massa de baunilha');
+  });
+
+  it('as mensagens de erro seguem o idioma', async () => {
+    const db = await novaBase();
+    definirIdioma('en');
+    await expect(repo.aplicarReceita(db, 1, 999, 1)).rejects.toThrow('no longer exists');
   });
 });
 
@@ -732,6 +804,21 @@ describe('backup', () => {
     const db = await novaBase();
     await restaurarBackup(db, validarBackup(v4, VERSAO_SCHEMA));
     expect((await repo.obterOrcamento(db, id))!.estado_em).toBe('2026-10-05T09:00:00.000Z');
+  });
+
+  it('um backup v5 (só havia português) fica em português; o atual traz o idioma', async () => {
+    const origem = await novaBase();
+    await repo.guardarIdioma(origem, 'en');
+    const atual = JSON.parse(JSON.stringify(await gerarBackup(origem))) as backupModulo.Backup;
+    const v5 = JSON.parse(JSON.stringify(atual)) as backupModulo.Backup;
+    v5.versao_schema = 5;
+    v5.tabelas.definicoes = v5.tabelas.definicoes.map(({ idioma: _i, ...linha }) => linha);
+
+    const db = await novaBase();
+    await restaurarBackup(db, validarBackup(v5, VERSAO_SCHEMA));
+    expect((await repo.obterDefinicoes(db)).idioma).toBe('pt');
+    await restaurarBackup(db, validarBackup(atual, VERSAO_SCHEMA));
+    expect((await repo.obterDefinicoes(db)).idioma).toBe('en');
   });
 
   it('o backup inclui a data do estado', async () => {

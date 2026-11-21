@@ -16,9 +16,10 @@ import {
   type ReceitaCompleta,
   type ResumoReceita,
 } from '@/db/repo';
-import { formatarEuro, lerDecimal } from '@/domain/format';
+import { formatarDecimal, formatarEuro, formatarPercentagem, lerDecimal } from '@/domain/format';
 import { somaLinhas } from '@/domain/pricing';
 import { escalarLinhas, escalaValida } from '@/domain/receitas';
+import { textos } from '@/i18n';
 import { mostrarErro } from '@/ui/confirmar';
 import { avisar } from '@/ui/Guardar';
 import { espaco, tema } from '@/ui/theme';
@@ -44,6 +45,7 @@ function EscolherReceita({ aoEscolher }: { aoEscolher: (id: number) => void }) {
   const db = useSQLiteContext();
   const [pesquisa, setPesquisa] = useState('');
   const [lista, setLista] = useState<ResumoReceita[]>([]);
+  const t = textos();
 
   useEffect(() => {
     listarReceitas(db, pesquisa).then(setLista).catch(mostrarErro);
@@ -51,8 +53,8 @@ function EscolherReceita({ aoEscolher }: { aoEscolher: (id: number) => void }) {
 
   return (
     <View style={styles.flex}>
-      <Stack.Screen options={{ title: 'Escolher receita' }} />
-      <Searchbar placeholder="Pesquisar receita" value={pesquisa} onChangeText={setPesquisa} style={styles.pesquisa} />
+      <Stack.Screen options={{ title: t.receita.escolher }} />
+      <Searchbar placeholder={t.receitas.pesquisar} value={pesquisa} onChangeText={setPesquisa} style={styles.pesquisa} />
       <FlatList
         data={lista.filter((r) => r.n_linhas > 0)}
         keyExtractor={(r) => String(r.id)}
@@ -60,13 +62,13 @@ function EscolherReceita({ aoEscolher }: { aoEscolher: (id: number) => void }) {
         ItemSeparatorComponent={Divider}
         ListEmptyComponent={
           <Text style={styles.vazio}>
-            {pesquisa ? 'Nada encontrado.' : 'Ainda não há receitas com linhas. Crie-as no separador Receitas.'}
+            {pesquisa ? t.comum.nadaEncontrado : t.receita.semReceitas}
           </Text>
         }
         renderItem={({ item: r }) => (
           <List.Item
-            title={r.nome || 'Sem nome'}
-            description={r.n_linhas === 1 ? '1 linha' : `${r.n_linhas} linhas`}
+            title={r.nome || t.comum.semNome}
+            description={t.comum.linhas(r.n_linhas)}
             onPress={() => aoEscolher(r.id)}
           />
         )}
@@ -79,6 +81,7 @@ function FormEscala({ receita, boloId, aoVoltar }: { receita: ReceitaCompleta; b
   const db = useSQLiteContext();
   const [texto, setTexto] = useState('1');
   const [tentou, setTentou] = useState(false);
+  const t = textos();
 
   const escala = lerDecimal(texto);
   const valida = escalaValida(escala);
@@ -90,7 +93,7 @@ function FormEscala({ receita, boloId, aoVoltar }: { receita: ReceitaCompleta; b
     if (!valida) return;
     try {
       await aplicarReceita(db, boloId, receita.id, escala);
-      avisar('Receita adicionada ao bolo');
+      avisar(t.receita.adicionada);
       router.back();
     } catch (e) {
       mostrarErro(e);
@@ -99,9 +102,9 @@ function FormEscala({ receita, boloId, aoVoltar }: { receita: ReceitaCompleta; b
 
   return (
     <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
-      <Stack.Screen options={{ title: 'Adicionar receita' }} />
+      <Stack.Screen options={{ title: t.ecras.adicionarReceita }} />
       <View>
-        <Text variant="titleLarge">{receita.nome || 'Sem nome'}</Text>
+        <Text variant="titleLarge">{receita.nome || t.comum.semNome}</Text>
         <Text variant="bodyMedium" style={styles.secundario}>
           {receita.linhas.map((l) => l.nome).join(', ')}
         </Text>
@@ -110,7 +113,7 @@ function FormEscala({ receita, boloId, aoVoltar }: { receita: ReceitaCompleta; b
       <View>
         <TextInput
           mode="outlined"
-          label="Escala"
+          label={t.receita.escala}
           value={texto}
           onChangeText={setTexto}
           keyboardType="decimal-pad"
@@ -119,28 +122,24 @@ function FormEscala({ receita, boloId, aoVoltar }: { receita: ReceitaCompleta; b
           onSubmitEditing={adicionar}
         />
         {tentou && !valida ? (
-          <HelperText type="error">Indique uma escala maior que zero (ex.: 1,5).</HelperText>
+          <HelperText type="error">{t.receita.escalaInvalida(formatarDecimal(1.5))}</HelperText>
         ) : (
-          <HelperText type="info">
-            Multiplica as quantidades dos ingredientes (ex.: 1,5 para um bolo 50 % maior). Materiais e linhas
-            livres ficam iguais.
-          </HelperText>
+          <HelperText type="info">{t.receita.ajudaEscala(formatarDecimal(1.5), formatarPercentagem(50))}</HelperText>
         )}
       </View>
 
       <View>
         <Text variant="headlineSmall">= {formatarEuro(custo)}</Text>
         <Text variant="bodySmall" style={styles.secundario}>
-          Custo com os preços atuais, sem margem. As linhas juntam-se às que o bolo já tem e podem ser
-          editadas depois.
+          {t.receita.notaCustoEscala}
         </Text>
       </View>
 
       <Button mode="contained" onPress={adicionar}>
-        Adicionar ao bolo
+        {t.receita.adicionarAoBolo}
       </Button>
       <Button mode="text" onPress={aoVoltar}>
-        Escolher outra receita
+        {t.receita.escolherOutra}
       </Button>
     </ScrollView>
   );

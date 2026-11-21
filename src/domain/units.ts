@@ -1,3 +1,5 @@
+import { textos } from '@/i18n';
+
 /** Unidade em que o preço de um item é definido (€/kg, €/l, €/un). */
 export type UnidadeItem = 'kg' | 'l' | 'un';
 
@@ -26,9 +28,17 @@ const FATOR: Record<UnidadeEntrada, number> = {
   un: 1,
 };
 
+/**
+ * Símbolo a mostrar para uma unidade guardada. Na base fica sempre o código ("un"); só o que se
+ * mostra muda com o idioma ("un", "pc", "ud", "pce").
+ */
+export function simboloUnidade(unidade: UnidadeEntrada): string {
+  return textos().unidades.simbolo[unidade];
+}
+
 function verificarCompatibilidade(unidadeItem: UnidadeItem, entrada: UnidadeEntrada) {
   if (!UNIDADES_ENTRADA[unidadeItem].includes(entrada)) {
-    throw new Error(`Unidade ${entrada} não é compatível com ${unidadeItem}`);
+    throw new Error(textos().unidades.incompativel(entrada, unidadeItem));
   }
 }
 

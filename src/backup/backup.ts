@@ -13,6 +13,7 @@ import * as Sharing from 'expo-sharing';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { numerarPorAno, ultimosPorAno, type NumeroOrcamento } from '@/domain/numero';
+import { textos } from '@/i18n';
 import { COR_PDF_POR_OMISSAO } from '@/pdf/cores';
 
 const APP_ID = 'orcamentos-bolos';
@@ -23,7 +24,7 @@ export const TABELAS: Record<string, string[]> = {
   definicoes: [
     'id', 'valor_hora_cent', 'custo_indireto_pct', 'margem_pct', 'moeda', 'nome_negocio', 'pdf_cor',
     'contacto_telefone', 'contacto_email', 'contacto_instagram', 'contacto_facebook', 'contacto_tiktok',
-    'contacto_site',
+    'contacto_site', 'idioma',
   ],
   items: ['id', 'tipo', 'nome', 'unidade', 'preco_unidade_cent', 'ativo', 'atualizado_em'],
   receitas: ['id', 'nome', 'notas', 'atualizado_em'],
@@ -94,9 +95,9 @@ export async function exportarBackup(db: SQLiteDatabase) {
   const backup = await gerarBackup(db);
   const f = await gravar(new Directory(Paths.cache, 'export'), `orcamentos-bolos-${carimbo()}.json`, JSON.stringify(backup));
   if (!(await Sharing.isAvailableAsync())) {
-    throw new Error('A partilha de ficheiros não está disponível neste dispositivo.');
+    throw new Error(textos().comum.partilhaIndisponivel);
   }
-  await Sharing.shareAsync(f.uri, { mimeType: 'application/json', dialogTitle: 'Guardar backup' });
+  await Sharing.shareAsync(f.uri, { mimeType: 'application/json', dialogTitle: textos().backup.guardar });
 }
 
 /** Backup automático na pasta da app; mantém só os mais recentes. */
@@ -145,6 +146,10 @@ const ATUALIZAR_BACKUP: ((t: Backup['tabelas']) => void)[] = [
   (t) => {
     t.orcamentos = (t.orcamentos ?? []).map((o) => ({ estado_em: o.atualizado_em, ...o }));
   },
+  // v5 → v6: idioma. Até aqui a app só existia em português (mesma regra da migração).
+  (t) => {
+    t.definicoes = (t.definicoes ?? []).map((d) => ({ idioma: 'pt', ...d }));
+  },
 ];
 
 /**
@@ -157,19 +162,17 @@ export function corInicialPdf(temOrcamentos: boolean): string {
 
 /** Valida a estrutura de um backup. Lança erro com mensagem legível se não for válido. */
 export function validarBackup(dados: unknown, versaoAtual: number): Backup {
+  const t = textos().backup;
   const b = dados as Partial<Backup> | null;
   if (!b || typeof b !== 'object' || b.app !== APP_ID || typeof b.tabelas !== 'object' || !b.tabelas) {
-    throw new Error('Este ficheiro não é um backup desta app.');
+    throw new Error(t.naoEBackup);
   }
   const versao = b.versao_schema;
   if (typeof versao !== 'number' || !Number.isInteger(versao) || versao < 1) {
-    throw new Error('O backup tem uma versão de dados inválida.');
+    throw new Error(t.versaoInvalida);
   }
   if (versao > versaoAtual) {
-    throw new Error(
-      `O backup é da versão de dados ${versao} e a app usa a ${versaoAtual}. ` +
-        'Instale a versão mais recente da app para o importar.',
-    );
+    throw new Error(t.versaoMaisRecente(versao, versaoAtual));
   }
   let tabelas = b.tabelas;
   if (versao < versaoAtual) {
@@ -177,9 +180,9 @@ export function validarBackup(dados: unknown, versaoAtual: number): Backup {
     for (let v = versao; v < versaoAtual; v++) ATUALIZAR_BACKUP[v - 1](tabelas);
   }
   for (const nome of Object.keys(TABELAS)) {
-    if (!Array.isArray(tabelas[nome])) throw new Error(`O backup não tem a tabela "${nome}".`);
+    if (!Array.isArray(tabelas[nome])) throw new Error(t.semTabela(nome));
   }
-  if (tabelas.definicoes.length !== 1) throw new Error('O backup tem definições inválidas.');
+  if (tabelas.definicoes.length !== 1) throw new Error(t.definicoesInvalidas);
   return { app: APP_ID, versao_schema: versaoAtual, exportado_em: String(b.exportado_em ?? ''), tabelas };
 }
 
@@ -211,7 +214,7 @@ export async function escolherBackup(db: SQLiteDatabase): Promise<Backup | null>
   try {
     dados = JSON.parse(await new File(r.assets[0].uri).text());
   } catch {
-    throw new Error('Não foi possível ler o ficheiro. Confirme que é um backup .json desta app.');
+    throw new Error(textos().backup.naoFoiPossivelLer);
   }
   return validarBackup(dados, await versaoSchema(db));
 }

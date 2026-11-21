@@ -5,11 +5,19 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Divider, HelperText, Text, TextInput } from 'react-native-paper';
 
 import { escolherBackup, exportarBackup, restaurarBackup } from '@/backup/backup';
-import { guardarDefinicoes, obterDefinicoes, type Definicoes as DadosDefinicoes } from '@/db/repo';
+import {
+  guardarDefinicoes,
+  guardarIdioma,
+  obterDefinicoes,
+  type Definicoes as DadosDefinicoes,
+} from '@/db/repo';
 import { centParaTexto, formatarDecimal, lerDecimal, lerEurosParaCent } from '@/domain/format';
+import { ehIdioma, textos, type Idioma } from '@/i18n';
+import { aplicarPreferenciaIdioma } from '@/i18n/dispositivo';
 import { COR_PDF_POR_OMISSAO } from '@/pdf/cores';
 import { confirmar, mostrarErro } from '@/ui/confirmar';
 import { EscolherCorPdf } from '@/ui/EscolherCorPdf';
+import { EscolherIdioma } from '@/ui/EscolherIdioma';
 import { avisar } from '@/ui/Guardar';
 import { espaco, tema } from '@/ui/theme';
 
@@ -21,18 +29,18 @@ type CampoContacto =
   | 'contacto_tiktok'
   | 'contacto_site';
 
+/** Campos de contacto; o rótulo e o exemplo vêm de `textos().definicoes.contactos[texto]`. */
 const CAMPOS_CONTACTO: {
   campo: CampoContacto;
-  rotulo: string;
-  exemplo: string;
+  texto: keyof ReturnType<typeof textos>['definicoes']['contactos'];
   teclado: 'phone-pad' | 'email-address' | 'url' | 'default';
 }[] = [
-  { campo: 'contacto_telefone', rotulo: 'Telefone', exemplo: '912 345 678', teclado: 'phone-pad' },
-  { campo: 'contacto_email', rotulo: 'Email', exemplo: 'encomendas@exemplo.pt', teclado: 'email-address' },
-  { campo: 'contacto_instagram', rotulo: 'Instagram', exemplo: '@o.seu.negocio', teclado: 'default' },
-  { campo: 'contacto_facebook', rotulo: 'Facebook', exemplo: 'nome da página', teclado: 'default' },
-  { campo: 'contacto_tiktok', rotulo: 'TikTok', exemplo: '@o.seu.negocio', teclado: 'default' },
-  { campo: 'contacto_site', rotulo: 'Site', exemplo: 'www.exemplo.pt', teclado: 'url' },
+  { campo: 'contacto_telefone', texto: 'telefone', teclado: 'phone-pad' },
+  { campo: 'contacto_email', texto: 'email', teclado: 'email-address' },
+  { campo: 'contacto_instagram', texto: 'instagram', teclado: 'default' },
+  { campo: 'contacto_facebook', texto: 'facebook', teclado: 'default' },
+  { campo: 'contacto_tiktok', texto: 'tiktok', teclado: 'default' },
+  { campo: 'contacto_site', texto: 'site', teclado: 'url' },
 ];
 
 const CONTACTOS_VAZIOS: Record<CampoContacto, string> = {
@@ -50,6 +58,8 @@ function contactosDe(d: DadosDefinicoes): Record<CampoContacto, string> {
 
 export default function Definicoes() {
   const db = useSQLiteContext();
+  const t = textos();
+  const [idioma, setIdioma] = useState<Idioma | ''>('');
   const [valorHora, setValorHora] = useState('');
   const [indireto, setIndireto] = useState('');
   const [margem, setMargem] = useState('');
@@ -62,6 +72,7 @@ export default function Definicoes() {
   const carregar = useCallback(() => {
     obterDefinicoes(db)
       .then((d) => {
+        setIdioma(ehIdioma(d.idioma) ? d.idioma : '');
         setValorHora(centParaTexto(d.valor_hora_cent));
         setIndireto(formatarDecimal(d.custo_indireto_pct, 2));
         setMargem(formatarDecimal(d.margem_pct, 2));
@@ -75,13 +86,27 @@ export default function Definicoes() {
 
   useFocusEffect(carregar);
 
+  /**
+   * Aplica-se logo, sem "Guardar definições". Os ecrãs voltam a ser montados no idioma novo
+   * (ver `_layout.tsx`), por isso o que estiver escrito e não guardado neste ecrã perde-se.
+   */
+  async function mudarIdioma(novo: Idioma | '') {
+    try {
+      await guardarIdioma(db, novo);
+      setIdioma(novo);
+      aplicarPreferenciaIdioma(novo);
+    } catch (e) {
+      mostrarErro(e);
+    }
+  }
+
   async function guardar() {
     const valorHoraCent = lerEurosParaCent(valorHora);
     const indiretoPct = lerDecimal(indireto);
     const margemPct = lerDecimal(margem);
-    if (valorHoraCent === null || valorHoraCent < 0) return setErro('Valor/hora inválido.');
-    if (indiretoPct === null || indiretoPct < 0) return setErro('Custos indiretos inválidos.');
-    if (margemPct === null || margemPct < 0) return setErro('Margem inválida.');
+    if (valorHoraCent === null || valorHoraCent < 0) return setErro(t.definicoes.valorHoraInvalido);
+    if (indiretoPct === null || indiretoPct < 0) return setErro(t.definicoes.custosIndiretosInvalidos);
+    if (margemPct === null || margemPct < 0) return setErro(t.comum.margemInvalida);
     setErro(null);
     try {
       const limpos = Object.fromEntries(
@@ -95,7 +120,7 @@ export default function Definicoes() {
         pdf_cor: corPdf,
         ...limpos,
       });
-      avisar('Definições guardadas. Os preços aplicam-se aos novos orçamentos; o resto, a todos os PDF.');
+      avisar(t.definicoes.guardadas);
     } catch (e) {
       mostrarErro(e);
     }
@@ -117,16 +142,19 @@ export default function Definicoes() {
     try {
       const backup = await escolherBackup(db);
       if (!backup) return;
-      const data = new Date(backup.exportado_em).toLocaleString('pt-PT');
+      const data = new Date(backup.exportado_em).toLocaleString(t.locale);
       const ok = await confirmar(
-        'Restaurar backup?',
-        `Todos os dados atuais (catálogo, receitas, orçamentos e definições) vão ser substituídos pelos do backup de ${data}. Isto não se pode desfazer.`,
-        'Restaurar',
+        t.definicoes.restaurarTitulo,
+        t.definicoes.restaurarMensagem(data),
+        t.definicoes.restaurarBotao,
       );
       if (!ok) return;
       await restaurarBackup(db, backup);
+      // O backup traz o idioma: os textos seguintes já saem nele.
+      aplicarPreferenciaIdioma((await obterDefinicoes(db)).idioma);
+      const t2 = textos().definicoes;
+      Alert.alert(t2.restaurado, t2.restauradoMensagem);
       carregar();
-      Alert.alert('Backup restaurado', 'Os dados foram substituídos.');
     } catch (e) {
       mostrarErro(e);
     } finally {
@@ -136,10 +164,12 @@ export default function Definicoes() {
 
   return (
     <ScrollView contentContainerStyle={styles.conteudo} keyboardShouldPersistTaps="handled">
-      <Text variant="titleMedium">Preços</Text>
+      <EscolherIdioma valor={idioma} aoEscolher={mudarIdioma} />
+
+      <Text variant="titleMedium">{t.definicoes.precos}</Text>
       <TextInput
         mode="outlined"
-        label="Valor por hora de trabalho"
+        label={t.definicoes.valorHora}
         value={valorHora}
         onChangeText={setValorHora}
         keyboardType="decimal-pad"
@@ -148,54 +178,52 @@ export default function Definicoes() {
       <View>
         <TextInput
           mode="outlined"
-          label="Custos indiretos"
+          label={t.definicoes.custosIndiretos}
           value={indireto}
           onChangeText={setIndireto}
           keyboardType="decimal-pad"
           right={<TextInput.Affix text="%" />}
         />
-        <HelperText type="info">Energia, gás, desgaste. Aplica-se a materiais + tempo.</HelperText>
+        <HelperText type="info">{t.definicoes.ajudaIndiretos}</HelperText>
       </View>
       <View>
         <TextInput
           mode="outlined"
-          label="Margem por omissão"
+          label={t.definicoes.margemPorOmissao}
           value={margem}
           onChangeText={setMargem}
           keyboardType="decimal-pad"
           right={<TextInput.Affix text="%" />}
         />
-        <HelperText type="info">
-          Aplica-se só aos ingredientes e materiais. Pode ser ajustada em cada orçamento.
-        </HelperText>
+        <HelperText type="info">{t.definicoes.ajudaMargem}</HelperText>
       </View>
 
       <Text variant="titleMedium" style={styles.titulo}>
-        O seu negócio
+        {t.definicoes.oSeuNegocio}
       </Text>
       <View>
-        <TextInput mode="outlined" label="Nome" value={nomeNegocio} onChangeText={setNomeNegocio} />
-        <HelperText type="info">Aparece no topo do PDF e no título do resumo em texto. Pode ficar vazio.</HelperText>
+        <TextInput mode="outlined" label={t.comum.nome} value={nomeNegocio} onChangeText={setNomeNegocio} />
+        <HelperText type="info">{t.definicoes.ajudaNome}</HelperText>
       </View>
 
       <View style={styles.grupo}>
-        <Text variant="titleSmall">Cor do PDF</Text>
+        <Text variant="titleSmall">{t.definicoes.corPdf}</Text>
         <EscolherCorPdf valor={corPdf} aoEscolher={setCorPdf} />
       </View>
 
       <View style={styles.grupo}>
-        <Text variant="titleSmall">Contactos no PDF</Text>
+        <Text variant="titleSmall">{t.definicoes.contactosPdf}</Text>
         <Text variant="bodySmall" style={styles.secundario}>
-          Aparecem no fundo do PDF. Os que ficarem vazios não aparecem.
+          {t.definicoes.ajudaContactos}
         </Text>
-        {CAMPOS_CONTACTO.map(({ campo, rotulo, exemplo, teclado }) => (
+        {CAMPOS_CONTACTO.map(({ campo, texto, teclado }) => (
           <TextInput
             key={campo}
             mode="outlined"
-            label={rotulo}
-            placeholder={exemplo}
+            label={t.definicoes.contactos[texto].rotulo}
+            placeholder={t.definicoes.contactos[texto].exemplo}
             value={contactos[campo]}
-            onChangeText={(t) => setContactos((c) => ({ ...c, [campo]: t }))}
+            onChangeText={(v) => setContactos((c) => ({ ...c, [campo]: v }))}
             keyboardType={teclado}
             autoCapitalize="none"
             autoCorrect={false}
@@ -205,21 +233,20 @@ export default function Definicoes() {
 
       {erro ? <HelperText type="error">{erro}</HelperText> : null}
       <Button mode="contained" onPress={guardar}>
-        Guardar definições
+        {t.definicoes.guardar}
       </Button>
 
       <Divider style={styles.divisor} />
 
-      <Text variant="titleMedium">Cópia de segurança</Text>
+      <Text variant="titleMedium">{t.definicoes.copiaSeguranca}</Text>
       <Text variant="bodyMedium" style={styles.secundario}>
-        Os dados só existem neste telemóvel. Faça um backup com regularidade e guarde-o fora do telemóvel (Google
-        Drive, ou envie-o para o seu email ou WhatsApp).
+        {t.definicoes.ajudaBackup}
       </Text>
       <Button mode="contained-tonal" icon="export" onPress={exportar} disabled={aOcupar}>
-        Exportar backup
+        {t.definicoes.exportar}
       </Button>
       <Button mode="outlined" icon="import" onPress={importar} disabled={aOcupar}>
-        Restaurar backup
+        {t.definicoes.restaurar}
       </Button>
     </ScrollView>
   );

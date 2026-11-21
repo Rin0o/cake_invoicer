@@ -13,17 +13,17 @@ import {
   receitasComItem,
   type TipoItem,
 } from '@/db/repo';
-import { centParaTexto, lerEurosParaCent } from '@/domain/format';
-import type { UnidadeItem } from '@/domain/units';
+import { centParaTexto, formatarPrecoUnidade, lerEurosParaCent } from '@/domain/format';
+import { simboloUnidade, type UnidadeItem } from '@/domain/units';
+import { textos } from '@/i18n';
 import { confirmar, mostrarErro } from '@/ui/confirmar';
 import { avisar } from '@/ui/Guardar';
 import { MenuMais } from '@/ui/MenuMais';
 import { espaco, tema } from '@/ui/theme';
 
-const NOME_UNIDADE: Record<UnidadeItem, string> = { kg: 'kg', l: 'litro', un: 'unidade' };
-
 export default function EditarItem() {
   const db = useSQLiteContext();
+  const t = textos();
   const { id, tipo: tipoInicial } = useLocalSearchParams<{ id: string; tipo?: TipoItem }>();
   const novo = id === 'novo';
 
@@ -49,8 +49,8 @@ export default function EditarItem() {
   }, [db, id, novo]);
 
   const precoCent = lerEurosParaCent(preco);
-  const erroNome = nome.trim() === '' ? 'Indique o nome.' : null;
-  const erroPreco = precoCent === null || precoCent < 0 ? 'Indique um preço válido (ex.: 1,20).' : null;
+  const erroNome = nome.trim() === '' ? t.item.indiqueNome : null;
+  const erroPreco = precoCent === null || precoCent < 0 ? t.item.precoInvalido(centParaTexto(120)) : null;
 
   async function guardar() {
     setTentouGuardar(true);
@@ -59,7 +59,7 @@ export default function EditarItem() {
     try {
       if (novo) await criarItem(db, dados);
       else await atualizarItem(db, Number(id), dados);
-      avisar(novo ? 'Item adicionado ao catálogo' : 'Item guardado');
+      avisar(novo ? t.item.adicionado : t.item.guardado);
       router.back();
     } catch (e) {
       mostrarErro(e);
@@ -70,19 +70,14 @@ export default function EditarItem() {
     try {
       const receitas = await receitasComItem(db, Number(id));
       if (receitas.length > 0) {
-        Alert.alert(
-          'Não é possível apagar',
-          `"${nome}" é usado nas receitas: ${receitas.join(', ')}.\n\nRetire-o dessas receitas primeiro, ou desative-o para deixar de aparecer.`,
-        );
+        Alert.alert(t.item.naoEPossivelApagar, t.item.usadoEmReceitas(nome, receitas.join(', ')));
         return;
       }
       const emUso = await itemEmUso(db, Number(id));
-      const mensagem = emUso
-        ? 'Este item é usado em orçamentos. Os orçamentos mantêm o nome e o preço, mas o item sai do catálogo. Em alternativa, pode desativá-lo.'
-        : 'O item sai do catálogo.';
-      if (!(await confirmar(`Apagar "${nome}"?`, mensagem))) return;
+      const mensagem = emUso ? t.item.usadoEmOrcamentos : t.item.saiDoCatalogo;
+      if (!(await confirmar(t.item.apagarTitulo(nome), mensagem))) return;
       await apagarItem(db, Number(id));
-      avisar('Item apagado');
+      avisar(t.item.apagado);
       router.back();
     } catch (e) {
       mostrarErro(e);
@@ -93,12 +88,12 @@ export default function EditarItem() {
     <ScrollView contentContainerStyle={styles.conteudo} keyboardShouldPersistTaps="handled">
       <Stack.Screen
         options={{
-          title: novo ? 'Novo item' : 'Editar item',
+          title: novo ? t.item.novo : t.item.editar,
           headerRight: novo
             ? undefined
             : () => (
                 <MenuMais
-                  opcoes={[{ titulo: 'Apagar item', icone: 'delete-outline', aoEscolher: apagar, destrutiva: true }]}
+                  opcoes={[{ titulo: t.item.apagarItem, icone: 'delete-outline', aoEscolher: apagar, destrutiva: true }]}
                 />
               ),
         }}
@@ -108,15 +103,15 @@ export default function EditarItem() {
         value={tipo}
         onValueChange={(v) => setTipo(v as TipoItem)}
         buttons={[
-          { value: 'ingrediente', label: 'Ingrediente' },
-          { value: 'material', label: 'Material' },
+          { value: 'ingrediente', label: t.comum.ingrediente },
+          { value: 'material', label: t.comum.material },
         ]}
       />
 
       <View>
         <TextInput
           mode="outlined"
-          label="Nome"
+          label={t.comum.nome}
           value={nome}
           onChangeText={setNome}
           autoFocus={novo}
@@ -126,26 +121,22 @@ export default function EditarItem() {
       </View>
 
       <View style={styles.bloco}>
-        <Text variant="labelLarge">O preço é por</Text>
+        <Text variant="labelLarge">{t.item.precoPor}</Text>
         <SegmentedButtons
           value={unidade}
           onValueChange={(v) => setUnidade(v as UnidadeItem)}
-          buttons={[
-            { value: 'kg', label: 'kg' },
-            { value: 'l', label: 'litro' },
-            { value: 'un', label: 'unidade' },
-          ]}
+          buttons={(['kg', 'l', 'un'] as const).map((u) => ({ value: u, label: t.unidades.nome[u] }))}
         />
       </View>
 
       <View>
         <TextInput
           mode="outlined"
-          label={`Preço por ${NOME_UNIDADE[unidade]}`}
+          label={t.item.precoPorUnidade(t.unidades.nome[unidade])}
           value={preco}
           onChangeText={setPreco}
           keyboardType="decimal-pad"
-          right={<TextInput.Affix text={`€/${unidade}`} />}
+          right={<TextInput.Affix text={`€/${simboloUnidade(unidade)}`} />}
           error={tentouGuardar && !!erroPreco}
         />
         {tentouGuardar && erroPreco ? (
@@ -153,8 +144,8 @@ export default function EditarItem() {
         ) : (
           <HelperText type="info">
             {unidade === 'un'
-              ? 'Ex.: ovos a 0,25 €/unidade, caixa a 1,50 €/unidade.'
-              : `Ex.: farinha a 1,20 €/${unidade}. No orçamento pode indicar a quantidade em ${unidade === 'kg' ? 'gramas' : 'ml'}.`}
+              ? t.item.exemploUnidade(formatarPrecoUnidade(25, 'un'), formatarPrecoUnidade(150, 'un'))
+              : t.item.exemploPeso(formatarPrecoUnidade(120, unidade), t.unidades.pequena[unidade])}
           </HelperText>
         )}
       </View>
@@ -162,9 +153,9 @@ export default function EditarItem() {
       {!novo ? (
         <View style={styles.linha}>
           <View style={styles.flex}>
-            <Text variant="bodyLarge">Ativo</Text>
+            <Text variant="bodyLarge">{t.item.ativo}</Text>
             <Text variant="bodySmall" style={styles.secundario}>
-              Itens inativos não aparecem ao adicionar a um orçamento.
+              {t.item.ajudaAtivo}
             </Text>
           </View>
           <Switch value={ativo} onValueChange={setAtivo} />
@@ -173,12 +164,12 @@ export default function EditarItem() {
 
       {!novo ? (
         <Text variant="bodySmall" style={styles.secundario}>
-          Mudar o preço não altera os orçamentos já feitos. As receitas usam sempre o preço atual.
+          {t.item.notaPreco}
         </Text>
       ) : null}
 
       <Button mode="contained" icon="check" onPress={guardar} style={styles.botao}>
-        Guardar
+        {t.comum.guardar}
       </Button>
     </ScrollView>
   );

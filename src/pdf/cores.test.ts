@@ -1,4 +1,5 @@
-import { COR_PDF_POR_OMISSAO, CORES_PDF, corPdf } from '@/pdf/cores';
+import { definirIdioma, IDIOMAS } from '@/i18n';
+import { COR_PDF_POR_OMISSAO, CORES_PDF, corPdf, nomeCor } from '@/pdf/cores';
 
 function luminancia(hex: string) {
   const [r, g, b] = [1, 3, 5]
@@ -9,7 +10,7 @@ function luminancia(hex: string) {
 const contrasteComBranco = (hex: string) => 1.05 / (luminancia(hex) + 0.05);
 
 describe('cores do PDF', () => {
-  it.each(CORES_PDF.map((c) => [c.nome, c] as const))('%s é legível sobre papel branco', (_nome, c) => {
+  it.each(CORES_PDF.map((c) => [c.id, c] as const))('%s é legível sobre papel branco', (_id, c) => {
     expect(contrasteComBranco(c.principal)).toBeGreaterThanOrEqual(4.5);
     expect(contrasteComBranco(c.texto)).toBeGreaterThanOrEqual(4.5);
     expect(contrasteComBranco(c.secundaria)).toBeGreaterThanOrEqual(4.5);
@@ -24,7 +25,16 @@ describe('cores do PDF', () => {
 
   it('a cor por omissão existe e um id desconhecido cai nela', () => {
     expect(CORES_PDF.some((c) => c.id === COR_PDF_POR_OMISSAO)).toBe(true);
-    expect(corPdf('lilas').nome).toBe('Lilás');
     expect(corPdf('nao-existe').id).toBe(COR_PDF_POR_OMISSAO);
+  });
+
+  it('todas as cores têm nome em todos os idiomas', () => {
+    for (const i of IDIOMAS) {
+      definirIdioma(i);
+      for (const c of CORES_PDF) expect(nomeCor(c.id)).not.toBe(c.id);
+    }
+    definirIdioma('pt');
+    expect(nomeCor('lilas')).toBe('Lilás');
+    expect(nomeCor('nao-existe')).toBe('nao-existe');
   });
 });

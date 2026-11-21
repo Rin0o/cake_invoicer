@@ -1,4 +1,10 @@
-/** Formatação e leitura de valores no formato português (vírgula decimal). */
+/**
+ * Formatação e leitura de valores. A formatação segue o idioma atual (`textos().formato`:
+ * "1,20 €" em português, "€1.20" em inglês); a leitura aceita vírgula ou ponto decimal.
+ */
+import { textos } from '@/i18n';
+
+import { simboloUnidade, type UnidadeEntrada } from './units';
 
 /** Lê um número escrito como "1,5", "1.5" ou " 2 ". Devolve `null` se não for válido. */
 export function lerDecimal(texto: string): number | null {
@@ -14,14 +20,19 @@ export function lerEurosParaCent(texto: string): number | null {
   return n === null ? null : Math.round(n * 100);
 }
 
-/** Formata um número com vírgula decimal, sem zeros desnecessários (máx. `casas`). */
+/** Formata um número com o separador decimal do idioma, sem zeros desnecessários (máx. `casas`). */
 export function formatarDecimal(n: number, casas = 3): string {
   const fixo = n.toFixed(casas).replace(/\.?0+$/, '');
-  return fixo.replace('.', ',');
+  return fixo.replace('.', textos().formato.decimal);
+}
+
+/** 30 → "30 %" (em inglês "30%"). */
+export function formatarPercentagem(pct: number): string {
+  return textos().formato.percentagem(formatarDecimal(pct, 2));
 }
 
 function agruparMilhares(inteiro: string): string {
-  return inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, textos().formato.milhares);
 }
 
 /** 12345 → "123,45 €". Arredonda ao cêntimo. */
@@ -30,24 +41,25 @@ export function formatarEuro(cent: number): string {
   const abs = Math.round(Math.abs(cent));
   const euros = Math.floor(abs / 100);
   const resto = String(abs % 100).padStart(2, '0');
-  return `${negativo ? '−' : ''}${agruparMilhares(String(euros))},${resto} €`;
+  const f = textos().formato;
+  return `${negativo ? '−' : ''}${f.euro(`${agruparMilhares(String(euros))}${f.decimal}${resto}`)}`;
 }
 
-/** 120, "kg" → "1,20 €/kg". */
-export function formatarPrecoUnidade(cent: number, unidade: string): string {
-  return `${formatarEuro(cent)}/${unidade}`;
+/** 120, "kg" → "1,20 €/kg". A unidade é a guardada ("kg", "l", "un"); o símbolo segue o idioma. */
+export function formatarPrecoUnidade(cent: number, unidade: UnidadeEntrada): string {
+  return `${formatarEuro(cent)}/${simboloUnidade(unidade)}`;
 }
 
 /** Para valores já arredondados ao euro: 4500 → "45 €". */
 export function formatarEuroInteiro(cent: number): string {
   const negativo = cent < 0;
   const euros = Math.round(Math.abs(cent) / 100);
-  return `${negativo ? '−' : ''}${agruparMilhares(String(euros))} €`;
+  return `${negativo ? '−' : ''}${textos().formato.euro(agruparMilhares(String(euros)))}`;
 }
 
 /** Valor em cêntimos para um campo de texto: 120 → "1,20". */
 export function centParaTexto(cent: number): string {
-  return (cent / 100).toFixed(2).replace('.', ',');
+  return (cent / 100).toFixed(2).replace('.', textos().formato.decimal);
 }
 
 /**

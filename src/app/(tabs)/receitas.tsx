@@ -6,6 +6,7 @@ import { FlatList, StyleSheet, View } from 'react-native';
 import { FAB, Searchbar, Text } from 'react-native-paper';
 
 import { criarReceita, listarReceitas, type ResumoReceita } from '@/db/repo';
+import { textos } from '@/i18n';
 import { CartaoLista } from '@/ui/CartaoLista';
 import { mostrarErro } from '@/ui/confirmar';
 import { espaco, tema } from '@/ui/theme';
@@ -14,6 +15,7 @@ export default function Receitas() {
   const db = useSQLiteContext();
   const [pesquisa, setPesquisa] = useState('');
   const [lista, setLista] = useState<ResumoReceita[]>([]);
+  const t = textos();
 
   useFocusEffect(
     useCallback(() => {
@@ -32,23 +34,21 @@ export default function Receitas() {
 
   return (
     <View style={styles.ecra}>
-      <Searchbar placeholder="Pesquisar receita" value={pesquisa} onChangeText={setPesquisa} style={styles.pesquisa} />
+      <Searchbar placeholder={t.receitas.pesquisar} value={pesquisa} onChangeText={setPesquisa} style={styles.pesquisa} />
       <FlatList
         data={lista}
         keyExtractor={(r) => String(r.id)}
         contentContainerStyle={styles.lista}
         ListEmptyComponent={
           <Text style={styles.vazio} variant="bodyLarge">
-            {pesquisa
-              ? 'Nenhuma receita encontrada.'
-              : 'Ainda não há receitas.\nUma receita junta ingredientes e materiais do catálogo, para os adicionar a um bolo de uma vez.\nToque em + para criar.'}
+            {pesquisa ? t.receitas.nenhuma : t.receitas.vazio}
           </Text>
         }
         renderItem={({ item: r }) => (
           <CartaoLista
-            titulo={r.nome || 'Sem nome'}
+            titulo={r.nome || t.comum.semNome}
             tituloEstilo={!r.nome && styles.semNome}
-            descricao={r.n_linhas === 1 ? '1 linha' : `${r.n_linhas} linhas`}
+            descricao={t.comum.linhas(r.n_linhas)}
             icone="book-open-variant"
             corIcone={tema.colors.onPrimaryContainer}
             fundoIcone={tema.colors.primaryContainer}
@@ -57,7 +57,7 @@ export default function Receitas() {
           />
         )}
       />
-      <FAB icon="plus" label="Nova" style={styles.fab} onPress={nova} />
+      <FAB icon="plus" label={t.receitas.nova} style={styles.fab} onPress={nova} />
     </View>
   );
 }

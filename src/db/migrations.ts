@@ -1,6 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { guardarBackupAutomatico } from '@/backup/backup';
+import { textos } from '@/i18n';
 
 /**
  * Migrations versionadas. A versão do schema é guardada em `PRAGMA user_version`.
@@ -155,6 +156,16 @@ export const MIGRATIONS: string[] = [
   ALTER TABLE orcamentos ADD COLUMN estado_em TEXT NOT NULL DEFAULT '';
   UPDATE orcamentos SET estado_em = atualizado_em;
   `,
+
+  // v6 — idioma da app ('pt', 'en', 'es', 'fr'; '' = o do telemóvel). Uma base nova fica no
+  // idioma do telemóvel; uma que já existia fica em português, a única língua até aqui, para a
+  // app não mudar sozinha num telemóvel noutra língua (a mesma regra do passo v5 → v6 em
+  // src/backup/backup.ts).
+  `
+  ALTER TABLE definicoes ADD COLUMN idioma TEXT NOT NULL DEFAULT '';
+  UPDATE definicoes SET idioma = 'pt'
+    WHERE EXISTS (SELECT 1 FROM orcamentos) OR EXISTS (SELECT 1 FROM items) OR EXISTS (SELECT 1 FROM receitas);
+  `,
 ];
 
 export const VERSAO_SCHEMA = MIGRATIONS.length;
@@ -167,9 +178,7 @@ export async function migrar(db: SQLiteDatabase): Promise<void> {
   const atual = row?.user_version ?? 0;
 
   if (atual > VERSAO_SCHEMA) {
-    throw new Error(
-      `A base de dados é de uma versão mais recente da app (v${atual}). Instale a versão mais recente.`,
-    );
+    throw new Error(textos().base.versaoMaisRecente(atual));
   }
   if (atual === VERSAO_SCHEMA) return;
 

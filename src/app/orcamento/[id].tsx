@@ -15,7 +15,7 @@ import {
   obterOrcamento,
   type OrcamentoCompleto,
 } from '@/db/repo';
-import { avisoMudancaDeGrupo, estadoDepoisDePartilhar, type EstadoOrcamento } from '@/domain/estados';
+import { avisoMudancaDeGrupo, estadoDepoisDePartilhar, nomeEstado, type EstadoOrcamento } from '@/domain/estados';
 import {
   formatarData,
   formatarDataDeInstante,
@@ -28,6 +28,7 @@ import {
 } from '@/domain/format';
 import { formatarNumero } from '@/domain/numero';
 import { formatarReferencia } from '@/domain/referencia';
+import { textos } from '@/i18n';
 import { partilharPdf } from '@/pdf/pdf';
 import { resumoTexto } from '@/share/texto';
 import { BoloCard } from '@/ui/BoloCard';
@@ -55,6 +56,7 @@ type GuardarCampos = (campos: Parameters<typeof atualizarOrcamento>[2]) => Promi
 function DadosCliente({ o, guardarCampos }: { o: OrcamentoCompleto; guardarCampos: GuardarCampos }) {
   const { aberto, alternar } = useColapsavel(!o.cliente);
   const gestor = useGestor();
+  const t = textos();
 
   function usarContacto({ nome, contacto }: DadosContacto) {
     const campos = { ...(nome ? { cliente: nome } : {}), ...(contacto !== null ? { contacto } : {}) };
@@ -73,14 +75,18 @@ function DadosCliente({ o, guardarCampos }: { o: OrcamentoCompleto; guardarCampo
 
   if (!aberto) {
     const detalhes = [
-      `Nº ${formatarNumero(o)}`,
-      `Ref. ${formatarReferencia(o)}`,
-      o.data_entrega ? `Entrega ${formatarData(o.data_entrega)}` : 'Sem data de entrega',
+      t.orcamento.numeroCurto(formatarNumero(o)),
+      t.orcamento.referenciaCurta(formatarReferencia(o)),
+      o.data_entrega ? t.orcamentos.entrega(formatarData(o.data_entrega)) : t.orcamento.semDataEntrega,
       o.contacto,
     ].filter(Boolean);
     return (
       <Card mode="outlined" style={styles.card}>
-        <TouchableRipple onPress={alternar} borderless style={styles.toque} accessibilityLabel="Editar dados do cliente">
+        <TouchableRipple
+          onPress={alternar}
+          borderless
+          style={styles.toque}
+          accessibilityLabel={t.orcamento.editarCliente}>
           <View style={styles.clienteFechado}>
             <Avatar.Icon
               size={40}
@@ -90,7 +96,7 @@ function DadosCliente({ o, guardarCampos }: { o: OrcamentoCompleto; guardarCampo
             />
             <View style={styles.flex}>
               <Text variant="titleMedium" numberOfLines={1} style={!o.cliente && styles.semCliente}>
-                {o.cliente || 'Sem cliente'}
+                {o.cliente || t.comum.semCliente}
               </Text>
               {o.titulo ? (
                 <Text variant="bodyMedium" numberOfLines={1}>
@@ -112,62 +118,66 @@ function DadosCliente({ o, guardarCampos }: { o: OrcamentoCompleto; guardarCampo
     <Card mode="outlined" style={styles.card}>
       <Card.Content style={styles.campos}>
         <View style={styles.clienteTitulo}>
-          <Text variant="titleMedium">Cliente</Text>
+          <Text variant="titleMedium">{t.orcamento.cliente}</Text>
           <View style={styles.acoes}>
             <Text variant="labelLarge" style={styles.numero}>
-              Nº {formatarNumero(o)} · Ref. {formatarReferencia(o)}
+              {t.orcamento.numeroCurto(formatarNumero(o))} · {t.orcamento.referenciaCurta(formatarReferencia(o))}
             </Text>
-            <IconButton icon="chevron-up" onPress={alternar} accessibilityLabel="Fechar dados do cliente" />
+            <IconButton icon="chevron-up" onPress={alternar} accessibilityLabel={t.orcamento.fecharCliente} />
           </View>
         </View>
         <EscolherContacto aoEscolher={usarContacto} />
-        <CampoAutoGuardado label="Cliente" valor={o.cliente} aoGuardar={(t) => guardarCampos({ cliente: t.trim() })} />
         <CampoAutoGuardado
-          label="Contacto do cliente"
+          label={t.orcamento.cliente}
+          valor={o.cliente}
+          aoGuardar={(v) => guardarCampos({ cliente: v.trim() })}
+        />
+        <CampoAutoGuardado
+          label={t.orcamento.contactoCliente}
           valor={o.contacto}
           keyboardType="phone-pad"
-          aoGuardar={(t) => guardarCampos({ contacto: t.trim() })}
+          aoGuardar={(v) => guardarCampos({ contacto: v.trim() })}
         />
         <CampoAutoGuardado
-          label="Pedido (interno)"
-          placeholder="Ex.: Aniversário 5 anos"
+          label={t.orcamento.pedido}
+          placeholder={t.orcamento.exemploPedido}
           valor={o.titulo}
-          ajuda="Para reconhecer o pedido na lista. Não vai para o PDF."
-          aoGuardar={(t) => guardarCampos({ titulo: t.trim() })}
+          ajuda={t.orcamento.ajudaPedido}
+          aoGuardar={(v) => guardarCampos({ titulo: v.trim() })}
         />
         <CampoAutoGuardado
-          label="Data de entrega"
-          placeholder="dd/mm/aaaa"
+          label={t.orcamento.dataEntrega}
+          placeholder={t.formato.exemploData}
           valor={formatarData(o.data_entrega)}
           keyboardType="numbers-and-punctuation"
           right={
             <TextInput.Icon
               icon="calendar-month-outline"
-              accessibilityLabel="Escolher data de entrega no calendário"
+              accessibilityLabel={t.orcamento.escolherDataEntrega}
               onPress={escolherEntrega}
             />
           }
-          aoGuardar={async (t) => {
-            if (t.trim() === '') return guardarCampos({ data_entrega: null });
-            const iso = lerData(t);
-            if (!iso) return 'Data inválida. Use dd/mm/aaaa.';
+          aoGuardar={async (v) => {
+            if (v.trim() === '') return guardarCampos({ data_entrega: null });
+            const iso = lerData(v);
+            if (!iso) return t.orcamento.dataInvalida(t.formato.exemploData);
             await guardarCampos({ data_entrega: iso });
           }}
         />
         <CampoAutoGuardado
-          label="Notas (internas)"
+          label={t.orcamento.notasInternas}
           valor={o.notas}
           multiline
-          aoGuardar={(t) => guardarCampos({ notas: t })}
+          aoGuardar={(v) => guardarCampos({ notas: v })}
         />
         <CampoAutoGuardado
-          label="Margem"
+          label={t.comum.margem}
           valor={formatarDecimal(o.margem_pct, 2)}
           keyboardType="decimal-pad"
-          ajuda="Só sobre ingredientes e materiais."
-          aoGuardar={async (t) => {
-            const n = lerDecimal(t);
-            if (n === null || n < 0) return 'Margem inválida.';
+          ajuda={t.orcamento.ajudaMargem}
+          aoGuardar={async (v) => {
+            const n = lerDecimal(v);
+            if (n === null || n < 0) return t.comum.margemInvalida;
             await guardarCampos({ margem_pct: n });
           }}
         />
@@ -186,6 +196,7 @@ export default function EditarOrcamento() {
   const tecladoVisivel = useTecladoVisivel();
   const [escolherEstado, setEscolherEstado] = useState(false);
   const insets = useSafeAreaInsets();
+  const t = textos();
 
   const carregar = useCallback(async () => {
     setO(await obterOrcamento(db, orcamentoId));
@@ -265,11 +276,11 @@ export default function EditarOrcamento() {
 
   async function apagar() {
     if (!o) return;
-    const nome = o.cliente ? ` de ${o.cliente}` : '';
-    if (!(await confirmar(`Apagar o orçamento ${formatarNumero(o)}${nome}?`, 'Isto não se pode desfazer.'))) return;
+    const titulo = t.orcamento.apagarTitulo(formatarNumero(o), o.cliente);
+    if (!(await confirmar(titulo, t.comum.naoSePodeDesfazer))) return;
     try {
       await apagarOrcamento(db, orcamentoId);
-      avisar('Orçamento apagado');
+      avisar(t.orcamento.apagado);
       router.back();
     } catch (e) {
       mostrarErro(e);
@@ -284,7 +295,7 @@ export default function EditarOrcamento() {
   }
 
   if (!o || !calc) {
-    return <Stack.Screen options={{ title: 'Orçamento' }} />;
+    return <Stack.Screen options={{ title: t.ecras.orcamento }} />;
   }
 
   return (
@@ -293,21 +304,26 @@ export default function EditarOrcamento() {
         <Stack.Screen
           options={{
             headerTitle: () => (
-              <TituloComEstado titulo={o.cliente || `Orçamento ${formatarNumero(o)}`} estado={gestor.estado} />
+              <TituloComEstado titulo={o.cliente || t.comum.orcamentoN(formatarNumero(o))} estado={gestor.estado} />
             ),
             headerRight: () => (
               <View style={styles.acoes}>
-                <BotaoConcluido gestor={gestor} mensagem="Orçamento guardado" />
+                <BotaoConcluido gestor={gestor} mensagem={t.orcamento.guardado} />
                 <MenuMais
                   opcoes={[
-                    { titulo: 'Enviar PDF', icone: 'file-pdf-box', aoEscolher: () => partilhar('pdf'), desativada: aGerar },
                     {
-                      titulo: 'Enviar em texto',
+                      titulo: t.orcamento.enviarPdf,
+                      icone: 'file-pdf-box',
+                      aoEscolher: () => partilhar('pdf'),
+                      desativada: aGerar,
+                    },
+                    {
+                      titulo: t.orcamento.enviarTexto,
                       icone: 'message-text-outline',
                       aoEscolher: () => partilhar('texto'),
                       desativada: aGerar,
                     },
-                    { titulo: 'Apagar orçamento', icone: 'delete-outline', aoEscolher: apagar, destrutiva: true },
+                    { titulo: t.orcamento.apagarOrcamento, icone: 'delete-outline', aoEscolher: apagar, destrutiva: true },
                   ]}
                 />
               </View>
@@ -319,7 +335,7 @@ export default function EditarOrcamento() {
             <BotaoEstado estado={o.estado} onPress={() => setEscolherEstado(true)} />
             {formatarDataDeInstante(o.estado_em) ? (
               <Text variant="bodySmall" style={styles.estadoDesde}>
-                desde {formatarDataDeInstante(o.estado_em)}
+                {t.estados.desde(formatarDataDeInstante(o.estado_em))}
               </Text>
             ) : null}
             <PassosSeguintes estado={o.estado} aoEscolher={mudarEstado} />
@@ -345,7 +361,7 @@ export default function EditarOrcamento() {
           ))}
 
           <Button mode="outlined" icon="cake-variant" onPress={novoBolo} style={styles.botao}>
-            Adicionar bolo
+            {t.orcamento.adicionarBolo}
           </Button>
 
           <Button
@@ -355,7 +371,7 @@ export default function EditarOrcamento() {
             loading={aGerar}
             disabled={aGerar}
             style={styles.botao}>
-            Enviar PDF ao cliente
+            {t.orcamento.enviarPdfCliente}
           </Button>
           <Button
             mode="outlined"
@@ -363,11 +379,11 @@ export default function EditarOrcamento() {
             onPress={() => partilhar('texto')}
             disabled={aGerar}
             style={styles.botao}>
-            Enviar em texto
+            {t.orcamento.enviarTexto}
           </Button>
           {o.estado === 'rascunho' ? (
             <Text variant="bodySmall" style={[styles.secundario, styles.nota]}>
-              Ao enviar, o orçamento passa a «Enviado».
+              {t.orcamento.notaEnviar(nomeEstado('enviado'))}
             </Text>
           ) : null}
         </ScrollView>
@@ -375,16 +391,17 @@ export default function EditarOrcamento() {
           <Surface style={[styles.barraTotal, { paddingBottom: espaco.s + insets.bottom }]} elevation={4}>
             <View style={styles.flex}>
               <Text variant="titleMedium" style={styles.totalRotulo}>
-                Total
+                {t.comum.total}
               </Text>
               <Text variant="bodySmall" style={styles.totalSecundario}>
-                {o.bolos.length === 1 ? '1 bolo' : `${o.bolos.length} bolos`} · custo {formatarEuro(calc.custoCent)}
+                {t.comum.bolos(o.bolos.length)} · {t.orcamento.custo(formatarEuro(calc.custoCent))}
               </Text>
               {calc.diferencaCent !== 0 ? (
                 <Text variant="bodySmall" style={styles.totalSecundario}>
-                  Calculado {formatarEuroInteiro(calc.totalCalcCent)} · ajustes{' '}
-                  {calc.diferencaCent > 0 ? '+' : ''}
-                  {formatarEuroInteiro(calc.diferencaCent)}
+                  {t.orcamento.calculadoAjustes(
+                    formatarEuroInteiro(calc.totalCalcCent),
+                    `${calc.diferencaCent > 0 ? '+' : ''}${formatarEuroInteiro(calc.diferencaCent)}`,
+                  )}
                 </Text>
               ) : null}
             </View>

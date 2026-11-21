@@ -3,7 +3,8 @@ This is an Expo/React Native mobile application (Android only, offline, local SQ
 ## This project
 
 - Read first: the spec (`Especificação — App de Orçamentação de Bolos.md`) for business rules, and `docs/arquitetura.md` for code layout and decisions.
-- **UI text, code identifiers and docs are in European Portuguese (pt-PT).** Keep it that way. Do not assume the gender of the app's user in UI text.
+- **Code identifiers and docs are in European Portuguese (pt-PT).** Keep it that way.
+- **UI text lives in `src/i18n/`** (pt, en, es, fr; `pt.ts` is the reference). Never hard-code UI text in a screen: add the key to all four languages and use `textos()`. Do not assume the gender of the app's user in any language.
 - **All pricing math lives in `src/domain/pricing.ts`** (pure, fully tested). Screens and queries call it; they never compute prices themselves.
 - Money is stored as **integer cents** (`*_cent`); percentages as REAL (`30` = 30 %). Only each cake's price is rounded (to the euro).
 - Quotes keep snapshots of prices and settings. Never make an existing quote depend on current catalog prices or settings.

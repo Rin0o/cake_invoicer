@@ -4,6 +4,7 @@ import { Alert, Linking, StyleSheet } from 'react-native';
 import { Button, Dialog, List, Portal } from 'react-native-paper';
 
 import { opcoesContacto, type OpcaoContacto } from '@/domain/contacto';
+import { textos } from '@/i18n';
 import { mostrarErro } from '@/ui/confirmar';
 import { avisar } from '@/ui/Guardar';
 import { espaco, tema } from '@/ui/theme';
@@ -22,14 +23,11 @@ async function pedirPermissao(): Promise<boolean> {
   const r = await requestPermissionsAsync();
   if (r.granted) return true;
   if (!r.canAskAgain) {
-    Alert.alert(
-      'Sem acesso aos contactos',
-      'Para escolher um cliente dos contactos, permita o acesso nas definições do telemóvel.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Abrir definições', onPress: () => Linking.openSettings() },
-      ],
-    );
+    const t = textos();
+    Alert.alert(t.contactos.semAcesso, t.contactos.semAcessoMensagem, [
+      { text: t.comum.cancelar, style: 'cancel' },
+      { text: t.contactos.abrirDefinicoes, onPress: () => Linking.openSettings() },
+    ]);
   }
   return false;
 }
@@ -42,6 +40,7 @@ async function pedirPermissao(): Promise<boolean> {
 export function EscolherContacto({ aoEscolher }: { aoEscolher: (dados: DadosContacto) => void }) {
   const [aAbrir, setAAbrir] = useState(false);
   const [escolha, setEscolha] = useState<{ nome: string; opcoes: OpcaoContacto[] } | null>(null);
+  const t = textos();
 
   async function abrir() {
     setAAbrir(true);
@@ -56,7 +55,7 @@ export function EscolherContacto({ aoEscolher }: { aoEscolher: (dados: DadosCont
         setEscolha({ nome: n, opcoes });
         return;
       }
-      if (opcoes.length === 0) avisar('O contacto não tem telefone nem email.');
+      if (opcoes.length === 0) avisar(t.contactos.semTelefoneNemEmail);
       aoEscolher({ nome: n, contacto: opcoes[0]?.valor ?? null });
     } catch (e) {
       mostrarErro(e);
@@ -78,11 +77,11 @@ export function EscolherContacto({ aoEscolher }: { aoEscolher: (dados: DadosCont
         loading={aAbrir}
         disabled={aAbrir}
         style={styles.botao}>
-        Escolher dos contactos
+        {t.contactos.escolher}
       </Button>
       <Portal>
         <Dialog visible={!!escolha} onDismiss={fechar} style={styles.dialogo}>
-          <Dialog.Title numberOfLines={1}>{escolha?.nome || 'Contacto'}</Dialog.Title>
+          <Dialog.Title numberOfLines={1}>{escolha?.nome || t.contactos.contacto}</Dialog.Title>
           <Dialog.Content style={styles.dialogoConteudo}>
             {escolha?.opcoes.map((o) => (
               <List.Item
@@ -99,13 +98,13 @@ export function EscolherContacto({ aoEscolher }: { aoEscolher: (dados: DadosCont
             ))}
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={fechar}>Cancelar</Button>
+            <Button onPress={fechar}>{t.comum.cancelar}</Button>
             <Button
               onPress={() => {
                 if (escolha) aoEscolher({ nome: escolha.nome, contacto: null });
                 fechar();
               }}>
-              Só o nome
+              {t.contactos.soNome}
             </Button>
           </Dialog.Actions>
         </Dialog>

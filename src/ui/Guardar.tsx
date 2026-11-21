@@ -14,6 +14,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState } fro
 import { Alert, Keyboard, StyleSheet, ToastAndroid, View } from 'react-native';
 import { Button, Text } from 'react-native-paper';
 
+import { textos } from '@/i18n';
 import { mostrarErro } from '@/ui/confirmar';
 import { tema } from '@/ui/theme';
 
@@ -56,7 +57,7 @@ export function useGestorGuardar(): Gestor {
       } catch (e) {
         setEstado('erro');
         mostrarErro(e);
-        return 'Não foi possível guardar.';
+        return textos().gravacao.naoFoiPossivel;
       }
     })();
     emCurso.current.add(p);
@@ -102,14 +103,14 @@ export function useColapsavel(inicialAberto: boolean) {
   return { aberto, alternar };
 }
 
-const TEXTO: Record<Exclude<EstadoGravacao, null>, string> = {
-  'a-guardar': 'A guardar…',
-  guardado: 'Guardado ✓',
-  erro: 'Há um valor por corrigir',
-};
-
 /** Título do cabeçalho com o estado da gravação por baixo. */
 export function TituloComEstado({ titulo, estado }: { titulo: string; estado: EstadoGravacao }) {
+  const t = textos().gravacao;
+  const texto: Record<Exclude<EstadoGravacao, null>, string> = {
+    'a-guardar': t.aGuardar,
+    guardado: t.guardado,
+    erro: t.erro,
+  };
   return (
     <View style={styles.titulo}>
       <Text variant="titleLarge" numberOfLines={1}>
@@ -117,7 +118,7 @@ export function TituloComEstado({ titulo, estado }: { titulo: string; estado: Es
       </Text>
       {estado ? (
         <Text variant="bodySmall" style={estado === 'erro' ? styles.erro : styles.estado}>
-          {TEXTO[estado]}
+          {texto[estado]}
         </Text>
       ) : null}
     </View>
@@ -135,16 +136,14 @@ export function avisar(mensagem: string) {
  */
 export function BotaoConcluido({ gestor, mensagem }: { gestor: Gestor; mensagem: string }) {
   const [aConcluir, setAConcluir] = useState(false);
+  const t = textos().gravacao;
 
   async function concluir() {
     setAConcluir(true);
     try {
       Keyboard.dismiss();
       if (!(await gestor.concluir())) {
-        Alert.alert(
-          'Falta corrigir um valor',
-          'Há um campo com um valor inválido (a vermelho). Corrija-o antes de sair; o resto já está guardado.',
-        );
+        Alert.alert(t.faltaCorrigir, t.faltaCorrigirMensagem);
         return;
       }
       avisar(mensagem);
@@ -156,7 +155,7 @@ export function BotaoConcluido({ gestor, mensagem }: { gestor: Gestor; mensagem:
 
   return (
     <Button mode="contained-tonal" icon="check" compact onPress={concluir} loading={aConcluir} disabled={aConcluir}>
-      Concluído
+      {t.concluido}
     </Button>
   );
 }
