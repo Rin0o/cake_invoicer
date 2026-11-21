@@ -21,6 +21,8 @@ Cada versão distribuída tem também um `android.versionCode` (em `app.json`) m
 - **Novo nome: CakeForCash** (antes *Orçamentos de Bolos*). O APK novo instala-se por cima do
   anterior e mantém os dados. O ficheiro de backup passa a chamar-se `cakeforcash-….json`, e os
   backups antigos continuam a restaurar.
+- **Banner ao abrir**: a app mostra o banner do CakeForCash durante uns 2 segundos enquanto
+  arranca (um toque salta-o).
 
 ### Adicionado
 

@@ -9,6 +9,7 @@ import { migrar } from '@/db/migrations';
 import { obterDefinicoes } from '@/db/repo';
 import { idiomaAtual, subscreverIdioma, textos } from '@/i18n';
 import { aplicarPreferenciaIdioma } from '@/i18n/dispositivo';
+import { Abertura } from '@/ui/Abertura';
 import { corCabecalho, tema } from '@/ui/theme';
 
 function ACarregar() {
@@ -62,6 +63,7 @@ export default function RootLayout() {
           <Navegacao />
         </SQLiteProvider>
       </Suspense>
+      <Abertura />
     </PaperProvider>
   );
 }
