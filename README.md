@@ -1,8 +1,9 @@
-# Orçamentos de Bolos
+# CakeForCash
 
 [![CI](https://github.com/Rin0o/cake_invoicer/actions/workflows/ci.yml/badge.svg)](https://github.com/Rin0o/cake_invoicer/actions/workflows/ci.yml)
 
-App Android para calcular orçamentos de bolos por encomenda. Funciona sem internet e guarda tudo
+**CakeForCash** (antes *Orçamentos de Bolos*) é uma app Android para calcular orçamentos de bolos
+por encomenda. Funciona sem internet e guarda tudo
 no telemóvel.
 
 - Catálogo de ingredientes e materiais com preço por kg, litro ou unidade.

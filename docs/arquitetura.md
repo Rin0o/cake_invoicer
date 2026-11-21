@@ -117,7 +117,11 @@ Um orçamento antigo tem de dar sempre o mesmo valor. Por isso:
 - Na base guardam-se códigos, não textos: estados, unidades (`un`; o símbolo mostrado muda) e ids
   das cores. A exceção são os nomes por omissão dos bolos ("Bolo 1"): ficam no idioma em que foram
   criados, e `ehNomePorOmissaoBolo` reconhece-os em qualquer idioma.
-- O nome da app no telemóvel ("Orçamentos de Bolos") não é traduzido.
+- O nome da app no telemóvel ("CakeForCash", em `app.json`) não é traduzido.
+- O nome antigo continua em identificadores que não se veem e que mudar partiria algo: o pacote
+  Android (`com.cakeinvoicer.orcamentos`, senão o APK novo não atualizava o instalado), o `slug`
+  do EAS e o `app` dentro do backup (`orcamentos-bolos`, senão os backups antigos deixavam de
+  restaurar).
 
 ## Base de dados
 
