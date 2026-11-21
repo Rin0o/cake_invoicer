@@ -1,11 +1,11 @@
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
-import { Animated, Image, Pressable, StyleSheet } from 'react-native';
+import { Animated, Image, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 
 import { tema } from './theme';
 
 /** Quanto tempo o banner fica no ecrã depois de carregado, e quanto dura o fade de saída. */
-const TEMPO_VISIVEL_MS = 2000;
+const TEMPO_VISIVEL_MS = 3500;
 const FADE_MS = 400;
 
 // O ecrã de arranque nativo só sai quando o banner já está desenhado, para não piscar em branco.
@@ -19,6 +19,9 @@ export function Abertura() {
   const [opacidade] = useState(() => new Animated.Value(1));
   const [carregado, setCarregado] = useState(false);
   const [visivel, setVisivel] = useState(true);
+  // A fita do banner vai até às bordas da imagem: deixar margem dos dois lados.
+  const { width, height } = useWindowDimensions();
+  const lado = Math.min(width * 0.65, height * 0.5, 340);
 
   const sair = () => {
     Animated.timing(opacidade, { toValue: 0, duration: FADE_MS, useNativeDriver: true }).start(() =>
@@ -41,7 +44,7 @@ export function Abertura() {
       <Pressable style={styles.centro} onPress={sair} accessible={false}>
         <Image
           source={require('../../assets/images/banner.png')}
-          style={styles.banner}
+          style={{ width: lado, height: lado }}
           resizeMode="contain"
           onLoad={() => setCarregado(true)}
           onError={() => setCarregado(true)}
@@ -55,5 +58,4 @@ export function Abertura() {
 const styles = StyleSheet.create({
   fundo: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: tema.colors.background, zIndex: 10 },
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  banner: { width: '80%', maxWidth: 420, aspectRatio: 1 },
 });
