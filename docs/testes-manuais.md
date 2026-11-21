@@ -9,7 +9,16 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
 
 - [ ] Instalar o APK novo **por cima** da versão anterior: a instalação é aceite.
 - [ ] Os orçamentos, o catálogo e as definições continuam lá, com os mesmos totais.
-- [ ] (0.1.0 → 0.2.0) O nome do negócio mantém-se; os orçamentos antigos aparecem como "Rascunho".
+- [ ] (0.2.0 → 1.0.0) A app aparece no telemóvel como **CakeForCash**, com o mesmo ícone, e
+      continua em português. Os orçamentos enviados mantêm a referência que o cliente recebeu e
+      os entregues e recusados estão nos seus separadores.
+
+## Abertura
+
+- [ ] Abrir a app: o ecrã de arranque passa para o banner do CakeForCash sem piscar em branco; o
+      banner fica uns 3,5 s, sai com um fade e mostra a lista de orçamentos.
+- [ ] Tocar no banner: sai logo.
+- [ ] O banner cabe inteiro no ecrã, sem cortar nas laterais (também num telemóvel pequeno).
 
 ## Catálogo
 
@@ -163,7 +172,9 @@ Preparar: o telemóvel deve ter dados de uma versão anterior, para testar a atu
 
 ## Backup
 
-- [ ] Exportar backup → guardar no Drive ou enviar por email: o ficheiro `.json` é criado.
+- [ ] Exportar backup → guardar no Drive ou enviar por email: o ficheiro `cakeforcash-….json` é criado.
+- [ ] Restaurar um backup feito na 0.2.0 (`orcamentos-bolos-….json`): importa sem erro e a app
+      fica em português.
 - [ ] Criar um orçamento de teste; restaurar o backup: o orçamento de teste desaparece e os dados
       voltam ao estado do backup.
 - [ ] Restaurar um backup feito na versão 0.1.0: importa sem erro.

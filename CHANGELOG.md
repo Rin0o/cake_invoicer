@@ -9,20 +9,22 @@ o [Semantic Versioning](https://semver.org/lang/pt-BR/):
 - **MINOR**: funcionalidade nova.
 - **PATCH**: correção.
 
-Enquanto a versão for `0.x`, a app está em desenvolvimento inicial: uma versão MINOR pode trazer
-alterações incompatíveis (que ficam assinaladas aqui). A `1.0.0` marca a primeira versão estável.
+A `1.0.0` é a primeira versão estável. A partir dela, uma alteração incompatível (ex.: um backup
+de uma versão anterior que deixa de importar) só pode vir numa versão MAJOR, assinalada aqui.
+Nas versões `0.x` (desenvolvimento inicial) não havia esta garantia.
 
 Cada versão distribuída tem também um `android.versionCode` (em `app.json`) maior do que o da anterior.
 
 ## [Por lançar]
 
-### Alterado
+## [1.0.0] — 2026-11-21
 
-- **Novo nome: CakeForCash** (antes *Orçamentos de Bolos*). O APK novo instala-se por cima do
-  anterior e mantém os dados. O ficheiro de backup passa a chamar-se `cakeforcash-….json`, e os
-  backups antigos continuam a restaurar.
-- **Banner ao abrir**: a app mostra o banner do CakeForCash durante uns 3,5 segundos enquanto
-  arranca (um toque salta-o).
+Primeira versão estável: novo nome, quatro idiomas, listas separadas por estado e PDF com a marca
+do negócio.
+
+**Para atualizar:** exportar antes um backup e instalar o APK novo **por cima** do anterior (não
+desinstalar). Os dados, a língua (português) e a cor dos PDF mantêm-se. Esta versão traz um módulo
+nativo novo (idioma do telemóvel), por isso não chega uma atualização OTA.
 
 ### Adicionado
 
@@ -31,7 +33,8 @@ Cada versão distribuída tem também um `android.versionCode` (em `app.json`) m
   inglês os preços escrevem-se `€12.50`. Uma instalação nova segue o idioma do telemóvel (ou
   inglês, se for outro); quem já usava a app continua em português. O idioma vai no backup.
   Os nomes escritos por quem usa a app (bolos, itens, receitas) não são traduzidos.
-
+- **Banner ao abrir**: a app mostra o banner do CakeForCash durante uns 3,5 segundos enquanto
+  arranca (um toque salta-o).
 - **Abertos, Entregues e Recusados**: a lista de orçamentos passa a mostrar só os abertos
   (rascunho, enviado, aceite). Os entregues e os recusados ficam cada um no seu separador, do mais
   recente para o mais antigo, e cada separador mostra quantos orçamentos tem. A pesquisa continua
@@ -50,6 +53,9 @@ Cada versão distribuída tem também um `android.versionCode` (em `app.json`) m
 
 ### Alterado
 
+- **Novo nome: CakeForCash** (antes *Orçamentos de Bolos*). O APK novo instala-se por cima do
+  anterior e mantém os dados. O ficheiro de backup passa a chamar-se `cakeforcash-….json`, e os
+  backups antigos continuam a restaurar.
 - **O cliente deixa de ver o número sequencial** (`2026-001`), que revelava quantos orçamentos já
   foram feitos. O PDF, o texto e o nome do ficheiro passam a ter uma referência que não segue uma
   ordem (ex.: `2026-QJQX`). Na app continua o número, com a referência ao lado ("Nº 2026-001 · Ref.
@@ -66,6 +72,8 @@ Cada versão distribuída tem também um `android.versionCode` (em `app.json`) m
   `contacto_facebook`, `contacto_tiktok` e `contacto_site`. Os backups antigos continuam a importar.
 - v5: coluna `orcamentos.estado_em`, preenchida com `atualizado_em` nos orçamentos existentes (e nos
   backups antigos ao importar).
+- v6: coluna `definicoes.idioma` (`''` = o do telemóvel). As bases que já existiam ficam em `pt`;
+  os backups antigos também (importam em português).
 
 ## [0.2.0] — 2026-11-20
 
@@ -179,6 +187,7 @@ Primeira versão (fase 1 da especificação).
 
 - v1: `items`, `definicoes`, `orcamentos`, `orcamento_bolos`, `orcamento_linhas`.
 
-[Por lançar]: https://github.com/Rin0o/cake_invoicer/compare/v0.2.0...HEAD
+[Por lançar]: https://github.com/Rin0o/cake_invoicer/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Rin0o/cake_invoicer/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/Rin0o/cake_invoicer/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Rin0o/cake_invoicer/releases/tag/v0.1.0

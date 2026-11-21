@@ -13,12 +13,15 @@ no telemóvel.
 - Cada orçamento tem um número interno (`2026-014`), uma referência para o cliente que não revela
   quantos orçamentos há (`2026-QJQX`) e um título interno do pedido; o cliente pode vir dos
   contactos do telemóvel e a data de entrega escolhe-se no calendário.
-- Estados (rascunho, enviado, aceite, recusado, entregue) e histórico com pesquisa e filtro.
+- Estados (rascunho, enviado, aceite, recusado, entregue), com listas separadas de abertos,
+  entregues e recusados, pesquisa e filtro.
 - Envio ao cliente em PDF (com o nome, a cor e os contactos do negócio) ou em texto, por WhatsApp,
   SMS ou email.
+- Em português, inglês, espanhol e francês (ecrãs, PDF e texto para o cliente).
 - Backup e restauro em JSON.
 
-Planos futuros (rever o PDF, opções de branding…) na
+Versão atual: **1.0.0** (ver o [CHANGELOG](CHANGELOG.md)). Ideias para as próximas (rever o PDF,
+logótipo próprio…) na
 [especificação](Especificação%20—%20App%20de%20Orçamentação%20de%20Bolos.md#7-plano-de-rollout).
 
 | Documento | Conteúdo |
@@ -33,7 +36,8 @@ Planos futuros (rever o PDF, opções de branding…) na
 
 - Node.js 24 (ver [.nvmrc](.nvmrc); mínimo 22.13, por causa do `node:sqlite` usado nos testes)
 - Um telemóvel Android com a app **Expo Go**, ou um emulador Android
-- Para gerar o APK: uma conta gratuita em [expo.dev](https://expo.dev)
+- Para gerar o APK: uma conta gratuita em [expo.dev](https://expo.dev) (build no EAS), ou o
+  Android SDK, um JDK e a keystore da app (build local, ver [docs/release.md](docs/release.md))
 
 ## Começar
 
@@ -68,6 +72,7 @@ Os testes automáticos cobrem tudo o que não é interface:
   do adaptador [src/db/testDb.ts](src/db/testDb.ts)).
 - `src/backup/`, `src/share/`, `src/pdf/template.ts`: exportar/restaurar, e o texto e o PDF
   enviados ao cliente.
+- `src/i18n/`: os quatro idiomas têm todos os textos, sem nenhum vazio.
 
 Os ecrãs são verificados à mão com [docs/testes-manuais.md](docs/testes-manuais.md).
 
@@ -90,7 +95,9 @@ src/
   backup/       exportar/importar JSON
   pdf/          PDF para o cliente
   share/        texto para o cliente
-  ui/           componentes partilhados e tema
+  i18n/         textos da interface em pt, en, es e fr
+  ui/           componentes partilhados, tema e banner de abertura
+plugins/        config plugin que assina o APK no build local
 docs/           documentação de desenvolvimento
 ```
 

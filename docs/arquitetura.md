@@ -123,6 +123,14 @@ Um orçamento antigo tem de dar sempre o mesmo valor. Por isso:
   do EAS e o `app` dentro do backup (`orcamentos-bolos`, senão os backups antigos deixavam de
   restaurar).
 
+## Abertura
+
+- [src/ui/Abertura.tsx](../src/ui/Abertura.tsx) desenha o banner (`assets/images/banner.png`) por
+  cima da navegação, no `_layout.tsx` da raiz. Entretanto a base abre e migra por baixo.
+- O ecrã de arranque nativo (`expo-splash-screen`) só se esconde quando o banner já está desenhado,
+  para não piscar em branco. O banner fica `TEMPO_VISIVEL_MS` (3,5 s) e sai com um fade; um toque
+  salta-o.
+
 ## Base de dados
 
 - [src/db/migrations.ts](../src/db/migrations.ts): lista de migrations SQL; a versão fica em
@@ -198,7 +206,8 @@ Padrões:
 
 | Decisão | Motivo | Rever se… |
 | --- | --- | --- |
-| Expo + React Native, sem pastas nativas no repositório | Build no EAS; sem Android Studio | for preciso código nativo próprio |
+| Expo + React Native, sem pastas nativas no repositório | Build no EAS, ou local com `prebuild` (a assinatura vem de um config plugin) | for preciso código nativo próprio |
+| Idiomas sem biblioteca de tradução | Quatro objetos tipados; o TypeScript apanha chaves em falta | houver plurais complexos ou muitos idiomas |
 | expo-sqlite com SQL direto, sem ORM | Poucas tabelas; mais fácil de testar com `node:sqlite` | o schema crescer muito |
 | React Native Paper | Componentes Material prontos | — |
 | Sem biblioteca de estado nem de formulários | Os dados vivem no SQLite; os formulários são pequenos | houver formulários grandes ou partilha de estado entre ecrãs |

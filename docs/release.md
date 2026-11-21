@@ -9,19 +9,31 @@ A app é distribuída como APK, instalado diretamente no telemóvel (sem Play St
    - `app.json` → `expo.version` (ex.: `1.1.0`), seguindo o [CHANGELOG](../CHANGELOG.md#changelog);
    - `app.json` → `expo.android.versionCode`: **sempre +1** (o Android recusa instalar um APK com
      `versionCode` igual ou menor por cima de outro);
-   - `package.json` → `version`, igual a `expo.version`.
+   - `package.json` → `version`, igual a `expo.version` (e as duas primeiras ocorrências de
+     `version` em `package-lock.json`, ou `npm install --package-lock-only`).
 3. No [CHANGELOG.md](../CHANGELOG.md), passar o conteúdo de *Por lançar* para a nova versão, com a data.
 4. Se houver migration nova, confirmar que está registada no CHANGELOG em *Schema da base de dados*.
-5. Commit `chore: versão X.Y.Z`, tag e push:
+   Rever também a [especificação](../Especificação%20—%20App%20de%20Orçamentação%20de%20Bolos.md)
+   (requisitos, modelo de dados, plano de rollout) e a secção *Atualização* de
+   [testes-manuais.md](testes-manuais.md).
+5. Commit `chore: versão X.Y.Z` num branch, com PR para `main`. Depois do merge, criar a tag no
+   commit de `main`:
    ```bash
+   git checkout main
+   git pull --ff-only
    git tag vX.Y.Z
-   git push origin main --tags
+   git push origin vX.Y.Z
    ```
-6. Gerar o APK (abaixo).
+   O push da tag lança o build no EAS (opção A, abaixo). Se o APK for gerado no computador
+   (opção C), o build do EAS pode ser ignorado.
+6. Gerar o APK (abaixo) e [verificar a assinatura](#verificar-a-assinatura).
 7. Correr [testes-manuais.md](testes-manuais.md) com o APK, num telemóvel com dados da versão anterior.
-8. Enviar o APK a quem usa a app, com instruções:
+8. (Opcional) Criar uma *Release* no GitHub para a tag, com as notas do CHANGELOG e o APK
+   anexado (renomeado para `CakeForCash-X.Y.Z.apk`).
+9. Enviar o APK a quem usa a app, com instruções:
    1. *Definições → Exportar backup* e guardar o ficheiro fora do telemóvel.
-   2. Abrir o APK e instalar **por cima** (não desinstalar a versão antiga).
+   2. Abrir o APK e instalar **por cima** (não desinstalar a versão antiga). Se o Android pedir,
+      autorizar a instalação de apps desta origem (ex.: WhatsApp ou Ficheiros).
 
 ## Gerar o APK
 
@@ -102,6 +114,18 @@ assinatura vem do plugin).
 
 **Onde está a keystore:** EAS (conta Expo) e uma cópia em `~/.android-keys/` no computador de
 desenvolvimento. Guardar também uma cópia num gestor de passwords (ver *Keystore*, abaixo).
+
+## Verificar a assinatura
+
+Antes de enviar o APK, confirmar que foi assinado com a chave de sempre (senão não instala por cima):
+
+```bash
+<ANDROID_HOME>/build-tools/<versão>/apksigner verify --print-certs android/app/build/outputs/apk/release/app-release.apk
+```
+
+O `SHA-256 digest` do certificado tem de ser igual ao das versões anteriores (o mesmo que mostra
+`npx eas-cli@latest credentials -p android`). Um certificado `CN=Android Debug` quer dizer que o
+APK não está assinado com a keystore da app.
 
 ## Keystore
 

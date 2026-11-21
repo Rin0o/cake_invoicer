@@ -2,14 +2,14 @@
   "expo": {
     "name": "CakeForCash",
     "slug": "orcamentos-bolos",
-    "version": "0.2.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "cakeforcash",
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.cakeinvoicer.orcamentos",
-      "versionCode": 2,
+      "versionCode": 3,
       "allowBackup": true,
       "adaptiveIcon": {
         "backgroundColor": "#EEF6FF",
