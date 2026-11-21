@@ -1,6 +1,6 @@
 # Especificação — App de Orçamentação de Bolos
 
-Nov 19, 2026 · @Pedro Rino
+Nov 19, 2026 · @Pedro Rino · atualizada para a versão 1.0.0 (Nov 21, 2026)
 
 ## 1. Visão geral e âmbito
 
@@ -9,7 +9,7 @@ Nov 19, 2026 · @Pedro Rino
 - **Utilizador:** uma pessoa que faz bolos por encomenda, a trabalhar num único telemóvel. Não é quem desenvolve a app, por isso a interface tem de ser autoexplicativa e as atualizações fáceis de instalar.
 - **Plataforma:** Android, distribuída como APK (sem Play Store na fase inicial).
 - **Dados:** 100% locais (SQLite no dispositivo), com backup/restauro manual em JSON.
-- **Fora de âmbito:** sincronização entre dispositivos, multiutilizador, iOS, faturação certificada, IVA (preços sem IVA; o PDF indica "Orçamento — não serve de fatura"), validade e sinal do orçamento, escala automática por tamanho (a escala das receitas indica-se à mão), receitas dentro de receitas, contactos do negócio no PDF, duplicação de orçamentos, histórico de preços.
+- **Fora de âmbito:** sincronização entre dispositivos, multiutilizador, iOS, faturação certificada, IVA (preços sem IVA; o PDF indica "Orçamento — não serve de fatura"), validade e sinal do orçamento, escala automática por tamanho (a escala das receitas indica-se à mão), receitas dentro de receitas, logótipo próprio no PDF, idioma diferente por orçamento, duplicação de orçamentos, histórico de preços.
 
 ## 2. Requisitos funcionais
 
@@ -24,13 +24,15 @@ Nov 19, 2026 · @Pedro Rino
 | RF07 | Linha livre | Linha com descrição e valor, para custos que não estão no catálogo |
 | RF08 | Cálculo automático | Valor de cada linha, custo por bolo, total do orçamento |
 | RF09 | Ajuste dos valores finais | Preço final de cada bolo editável e guardado; mostra a diferença face ao calculado, avisa se ficar abaixo do custo e permite repor o valor calculado |
-| RF10 | Exportar | PDF do orçamento para o cliente: nome do negócio no topo (se preenchido), referência do orçamento (não o número interno), data, data de entrega, cada bolo com o preço final, total, contactos do negócio no fundo (telefone, email, Instagram, Facebook, TikTok, site; só os preenchidos) e "Orçamento — não serve de fatura". Cor escolhida numa paleta de 8 opções nas Definições. Sem logótipo, sem nome do cliente, sem título do pedido, sem notas internas nem detalhe de ingredientes. O nome, a cor e os contactos são sempre os atuais, também em orçamentos antigos. Ficheiro `Orcamento-<referência>-<cliente>.pdf` |
+| RF10 | Exportar | PDF do orçamento para o cliente: nome do negócio no topo (se preenchido), referência do orçamento (não o número interno), data, data de entrega, cada bolo com o preço final, total, contactos do negócio no fundo (telefone, email, Instagram, Facebook, TikTok, site; só os preenchidos) e "Orçamento — não serve de fatura". Cor escolhida numa paleta de 8 opções nas Definições. Sem logótipo, sem nome do cliente, sem título do pedido, sem notas internas nem detalhe de ingredientes. O nome, a cor e os contactos são sempre os atuais, também em orçamentos antigos. Ficheiro `Orcamento-<referência>-<cliente>.pdf` (a primeira palavra muda com o idioma, ex.: `Devis-…` em francês) |
 | RF11 | Partilhar | Folha de partilha nativa (WhatsApp, email, Drive) com o PDF ou um resumo em texto. O resumo em texto tem título (com a referência e o nome do negócio), entrega, bolos e total, sem o nome do cliente, sem o título do pedido e sem a nota "não serve de fatura" (que fica só no PDF) |
 | RF12 | Histórico | Lista de orçamentos com cliente, título do pedido, estado, entrega e número, separada em três listas: **Abertos** (rascunho, enviado, aceite), **Entregues** e **Recusados**, cada uma com o número de orçamentos. Nos Abertos há filtro por estado. A pesquisa por cliente, título, número ou referência procura nas três listas. Ordem nos Abertos: entregas de hoje em diante (a mais próxima primeiro), depois as passadas (a mais recente primeiro), e no fim os orçamentos sem data. Nos Entregues e Recusados: do mais recente para o mais antigo, pela data em que ficaram nesse estado, que o cartão mostra em vez da entrega |
 | RF13 | Backup | Exportar e importar toda a base em JSON. Backups de versões anteriores da app continuam a importar |
 | RF14 | Estados | Rascunho, enviado, aceite, recusado, entregue; mudam-se à mão. Partilhar um rascunho (PDF ou texto) passa-o a enviado. Um recusado reabre-se (volta a rascunho) para ajustar e reenviar. Guarda-se a data da última mudança de estado, que aparece ao lado do estado. O orçamento é editável em qualquer estado |
 | RF15 | Receitas | Nome, notas e linhas de ingredientes/materiais do catálogo (com quantidade) e linhas livres. Sem tempo de trabalho. Mostra o custo estimado com os preços atuais do catálogo |
 | RF16 | Receita no orçamento | Adicionar uma receita a um bolo, com escala (decimal, ex.: 1,5). As linhas são copiadas com os preços atuais e juntam-se às que o bolo já tem, para montar um bolo a partir de várias receitas (massa + recheio + cobertura) |
+| RF17 | Idiomas | Português, inglês, espanhol e francês, escolhidos em Definições → Idioma ("Automático" segue o telemóvel; outra língua usa o inglês). Um só idioma para tudo: ecrãs, PDF, texto para o cliente e nome do ficheiro. A formatação dos valores segue o idioma (`€12.50` em inglês, `12,50 €` nos outros) e a leitura aceita vírgula ou ponto decimal. Os nomes escritos por quem usa a app não são traduzidos. Uma instalação nova abre no idioma do telemóvel; quem atualiza de uma versão anterior fica em português |
+| RF18 | Abertura | Ao abrir, a app mostra o banner do CakeForCash durante uns segundos, enquanto a base de dados abre por baixo. Um toque salta-o |
 
 ## 3. Stack técnica
 
@@ -40,10 +42,11 @@ React Native com Expo e TypeScript, persistência em SQLite local e build do APK
 | --- | --- | --- |
 | Framework | Expo (SDK atual) + TypeScript | Configuração mínima, acesso nativo, modelo mental React |
 | Navegação | Expo Router | Rotas por ficheiro, simples para ecrãs CRUD |
-| Persistência | expo-sqlite com SQL direto | Sete tabelas: queries tipadas à mão em `db/repo.ts` e migrations versionadas por `PRAGMA user_version`, sem ORM |
+| Persistência | expo-sqlite com SQL direto | Oito tabelas: queries tipadas à mão em `db/repo.ts` e migrations versionadas por `PRAGMA user_version`, sem ORM |
 | UI | React Native Paper | Componentes Material prontos para formulários e listas |
 | Formulários | Estado local + validação em `domain/format.ts` | Formulários pequenos; o editor do orçamento guarda ao sair de cada campo |
 | Estado | Sem biblioteca | O estado principal vive no SQLite e é recarregado ao voltar a cada ecrã |
+| Idiomas | Textos em `src/i18n/` + expo-localization | Sem biblioteca de tradução: um objeto tipado por idioma; o TypeScript garante que todos têm as mesmas chaves |
 | PDF | expo-print | PDF A4 gerado a partir de template HTML, com a cor e os contactos das definições |
 | Partilha | expo-sharing (ficheiro) + Share.share (texto) | Folha de partilha nativa do Android |
 | Backup | expo-file-system + expo-document-picker | Exportar/importar JSON para fora da pasta da app |
@@ -57,7 +60,7 @@ Oito tabelas SQLite. Valores monetários guardados em **cêntimos (inteiros)**; 
 | Tabela | Campos principais | Notas |
 | --- | --- | --- |
 | items | id, tipo (ingrediente/material), nome, unidade (kg/l/un), preco\_unidade\_cent, ativo, atualizado\_em | Preço por kg, por litro ou por unidade. `ativo = false` esconde o item sem apagar |
-| definicoes | valor\_hora\_cent, custo\_indireto\_pct, margem\_pct, moeda, nome\_negocio, pdf\_cor, contacto\_telefone, contacto\_email, contacto\_instagram, contacto\_facebook, contacto\_tiktok, contacto\_site | Linha única. `margem_pct` é o valor por omissão para novos orçamentos. `pdf_cor` é o id de uma cor de `src/pdf/cores.ts` |
+| definicoes | valor\_hora\_cent, custo\_indireto\_pct, margem\_pct, moeda, nome\_negocio, pdf\_cor, contacto\_telefone, contacto\_email, contacto\_instagram, contacto\_facebook, contacto\_tiktok, contacto\_site, idioma | Linha única. `margem_pct` é o valor por omissão para novos orçamentos. `pdf_cor` é o id de uma cor de `src/pdf/cores.ts`. `idioma`: `pt` / `en` / `es` / `fr`, ou vazio = o do telemóvel |
 | receitas | id, nome, notas, atualizado\_em | Só quantidades; os preços vêm sempre do catálogo atual |
 | receita\_linhas | id, receita\_id, item\_id (nulo em linha livre), livre, descricao, unidade\_entrada, quantidade, valor\_cent, ordem | Quantidade na unidade do item. Um item usado numa receita não pode ser apagado nem mudar de unidade |
 | numeracao | ano, ultimo | Último número de orçamento usado em cada ano, para nunca reutilizar um número |
@@ -139,11 +142,13 @@ src/
   pdf/pdf.ts              # gerar e partilhar o PDF
   share/texto.ts          # resumo em texto
   backup/backup.ts
+  i18n/pt.ts, en.ts, …    # textos de cada idioma (pt.ts é a referência)
+  ui/Abertura.tsx         # banner ao abrir
 ```
 
 - **Desenvolvimento:** development build no telemóvel via QR code.
 - **APK via EAS:** perfil em `eas.json` com `"android": { "buildType": "apk" }`.
-- **APK local:** `npx expo prebuild` seguido de `./gradlew assembleRelease` (requer Android SDK e keystore própria).
+- **APK local:** `npx expo prebuild` seguido de `./gradlew assembleRelease` (requer Android SDK e **a mesma keystore do EAS**; ver `docs/release.md`).
 - **Keystore:** todas as versões têm de ser assinadas com a mesma chave. Se a chave se perder, o novo APK não instala por cima e desinstalar **apaga os dados**. Guardar a keystore (ou usar a gerida pelo EAS) e documentar onde está.
 - **Atualizações:** instala-se o novo APK por cima do anterior. Os dados mantêm-se e as migrations correm no arranque.
 
@@ -153,15 +158,15 @@ Três fases incrementais; cada uma termina com um APK instalado e em uso.
 
 1. **MVP:** catálogo de ingredientes e materiais, definições (valor/hora, percentagens), orçamento com vários bolos, linhas e tempo, total calculado e ajustável, partilha em texto, **backup e restauro em JSON**.
 2. **Saída profissional e receitas:** PDF com logótipo, estados e histórico com filtro e pesquisa, receitas com escala.
-3. **Melhorias:** a definir após uso real. Já feito na 0.2.0: cliente a partir dos contactos, calendário para a data de entrega, número do orçamento e título interno do pedido. Planeado:
-   - **Rever o PDF:** aspeto e conteúdo do orçamento enviado ao cliente (organização, o que mostrar, legibilidade no telemóvel).
-   - **Marca no PDF:** feito depois da 0.2.0: nome do negócio no topo, paleta de cores e contactos no fundo. Por decidir: escolher um logótipo próprio da galeria.
-   - Outras ideias: backup automático periódico, estatísticas.
+3. **Melhorias:** a partir do uso real.
+   - Feito na 0.2.0: cliente a partir dos contactos, calendário para a data de entrega, número do orçamento e título interno do pedido.
+   - Feito na 1.0.0 (primeira versão estável): nome CakeForCash e banner ao abrir; quatro idiomas; referência para o cliente em vez do número; listas de abertos, entregues e recusados, com a data do estado; marca no PDF (nome do negócio no topo, paleta de cores, contactos no fundo).
+   - Ideias para depois da 1.0.0: rever o aspeto e o conteúdo do PDF; escolher um logótipo próprio da galeria; backup automático periódico; estatísticas.
 
 ## 8. Requisitos não funcionais e questões em aberto
 
 - **Offline total:** nenhuma funcionalidade depende de rede.
-- **Moeda e idioma:** EUR e português (PT) por omissão.
+- **Moeda e idioma:** EUR. Idioma do telemóvel numa instalação nova (português, inglês, espanhol ou francês; outro idioma → inglês). A interface não assume o género de quem a usa, em nenhum idioma.
 - **Usabilidade:** criar um orçamento típico em menos de 2 minutos, com uma só mão; pesquisa rápida de itens do catálogo ao adicionar linhas; texto claro para quem não é técnico.
 - **Fiabilidade:** migrations versionadas; backup JSON automático antes de cada migração, gravado na pasta da app (protege contra falhas de migração). Contra perda do telemóvel ou desinstalação, o backup manual é exportado pela folha de partilha para fora da app (Drive, email, WhatsApp).
 - **Testes:** cobertura do módulo de cálculo com casos de conversão de unidades, vários bolos, margem só sobre materiais, ajuste manual e arredondamento ao euro (incluindo o caso 0,50).
